@@ -1,0 +1,206 @@
+================================================================================
+                   My Shop Panel — 项目总览 v1.1
+                   Minecraft 1.20.1  Forge 47.4.20
+                   ModID: my_shop_panel   Version: 1.1.0
+================================================================================
+
+【版本历史】
+ v1.0.0 — 初始版本，双轨商店 + MSPP货币
+ v1.1.0 — QA修复(22+项) + 冗余仓库 + 世界商店交易弹窗 + 安全加固
+
+================================================================================
+【项目概述】
+My Shop Panel 轻量级经济模组，提供虚拟货币系统(MSPP, double精度)+双轨商店体系。
+统一入口"报价终端"，右键→主菜单；背包有终端时按 I 键快捷打开(服务端同步余额)。
+MSPP 支持小数和负数，整数不显示小数位(1,000 MSPP)，小数保留2位(1.50 MSPP)。
+
+================================================================================
+【系统架构】
+================================================================================
+
+一、经济系统 —— economy/ (MSPP: double)
+    MSPPointsSavedData.java
+     ┃ <世界>/data/msp_points.dat，SavedData。Map<UUID,Double>，NBT putDouble/getDouble。
+    ClientBalanceData.java
+     ┃ 客户端余额缓存。format(v) 调用 ShopUtils.fmt()，支持NaN/Infinity防护。
+    EditModeData.java
+     ┃ 客户端编辑模式开关，由 /MSPEdit T/F 指令通过 S2C_EditModePacket 控制。
+    SimulateOfflineData.java  [v1.1新增]
+     ┃ 测试用模拟离线状态，/MSPtest OnlineMode T/F 控制，仅内存不持久化。
+
+二、工具类 —— shop/ShopUtils.java [v1.1新增]
+     ┃ fmt(v)   — 统一金额格式化，整数无小数位(四舍五入判断)，支持NaN/∞防护
+     ┃ roundAmount(v) — 四舍五入到2位小数，防止浮点误差累积
+
+三、玩家市场 —— shop/PlayerMarket*.java
+    PlayerMarketListing.java — price: double，NBT 序列化 putDouble/getDouble。
+    PlayerMarketSavedData.java — 挂单持久化，displayId 自增(100起)。
+    MarketBlacklist.java
+     ┃ 报价黑名单，config/msp_blacklist.toml (TOML)，默认含 quotation_terminal。
+     ┃ /MSPBlacklist add/remove/list 指令管理(需OP)，isBlacklisted(ItemStack) 静态检查。
+     ┃ 客户端 ListingSetupScreen + 服务端 C2S_ListMarketItemPacket 双重校验。
+
+四、世界商店 —— shop/Admin*.java
+    AdminShopEntry.java
+     ┃ price: double, mode: SELLING(出售)/BUYING(收购), infiniteStock, stock。
+    AdminShopConfig.java
+     ┃ config/msp_quote.toml (TOML)，price 用 ((Number)...).doubleValue() 读取。
+
+五、事务系统 —— shop/TransactionService.java
+     ┃ commitMarketBuy — 市场购买(竞态回滚防护)
+     ┃ commitMarketList — 上架
+     ┃ commitDelist — 下架(在线→背包/掉落，离线→冗余仓库)
+     ┃ returnItemToPlayerOrWarehouse — 物品退回(支持SimulateOfflineData)
+
+六、冗余仓库 [v1.1新增]
+    WarehouseItem.java
+     ┃ 仓库物品条目(ItemStack + 时间戳)
+    RedundantWarehouseSavedData.java
+     ┃ <世界>/data/redundant_warehouse.dat，SavedData
+     ┃ 结构：Map<UUID, List<WarehousePage>>，每页54件(6×9)
+     ┃ 每页独立倒计时360000刻(5小时)，归零清页
+     ┃ 取回物品时该页倒计时重置
+    RedundantWarehouseScreen.java
+     ┃ 6×9网格渲染，多选+取回，一键取回+二次确认
+     ┃ 显示本页清理倒计时
+
+七、网络通信 —— network/ (14个包，协议v1.1)
+    C2S → S:
+     ┃ C2S_RequestMarketDataPacket      — 请求玩家市场数据(含余额)
+     ┃ C2S_ListMarketItemPacket          — 上架(price:double, 不可堆叠→强制qty=1, 黑名单校验, 空物品拦截)
+     ┃ C2S_ConfirmTransactionPacket      — 确认交易(MARKET_BUY/ADMIN_BUY/ADMIN_SELL/ADMIN_BUYBACK, 负数防护)
+     ┃ C2S_DelistItemPacket              — 下架(displayId≥100校验)
+     ┃ C2S_RequestAdminShopDataPacket    — 请求世界商店数据(含余额, null防护)
+     ┃ C2S_AdminShopEditPacket           — 编辑(ADD/REMOVE/STOCK_ADJUST/TOGGLE_STOCK/TOGGLE_MODE)
+     ┃ C2S_RequestWarehouseDataPacket    — [v1.1]请求冗余仓库数据
+     ┃ C2S_RetrieveWarehouseItemsPacket  — [v1.1]取回仓库物品(多选)
+     ┃ C2S_OpenTerminalPacket            — [v1.1]键盘I键→服务端同步余额后打开菜单
+
+    S2C → C:
+     ┃ S2C_OpenMenuPacket       — 打开菜单+同步余额(double)
+     ┃ S2C_MarketDataPacket     — 市场数据+余额(double, null防护, instanceof安全转型)
+     ┃ S2C_AdminShopDataPacket  — 世界商店数据+余额(double, MAX_ENTRIES=65536防护)
+     ┃ S2C_EditModePacket       — 编辑模式开关同步
+     ┃ S2C_WarehouseDataPacket  — [v1.1]冗余仓库数据+倒计时
+
+八、客户端界面 —— screen/ (9个Screen)
+    BaseStoreScreen.java        — 基类，磨砂背景+边框+居中工具。
+    MainMenuScreen.java (220x200)
+     ┃ "玩家市场"+"世界商店"+"冗余仓库"[v1.1]按钮。编辑模式开启时显示"编辑"按钮。
+
+    PlayerMarketScreen.java (340x240)
+     ┃ 左表(用户#ID/物品/价格) + 右边栏(购买|下架/我的报价/上架) + 底栏(◀页码▶/返回)。
+     ┃ 选中行白色边框，自己的→"下架"，他人的→"购买"→ConfirmDialog。
+     ┃ 多选批量下架。翻页按钮在页码两边居中。返回→MainMenuScreen。
+
+    ListingSetupScreen.java (300x260)
+     ┃ 9x4背包网格→选物→标价(double输入,允许-. )→数量→确认上架。不关闭界面。
+     ┃ 不可堆叠物品(maxStackSize≤1)→强制数量=1。maxStackSize校验。黑名单检查。
+
+    AdminShopScreen.java (340x240)
+     ┃ 购买模式(SELLING条目)：左键→打开购买弹窗[v1.1]
+     ┃ 出售模式(BUYING条目)：左键→打开卖出弹窗[v1.1]
+     ┃ 右键买回→1.3x价格(服务端独立计算[v1.1])。翻页按钮在页码两边居中。
+
+    AdminShopEditScreen.java (350x240)
+     ┃ "新增"→AdminShopListingScreen, "删除", "+1/-1/+10/-10"调整库存(溢出防护)。
+     ┃ "售卖切换"→SELLING↔BUYING, "库存开关"→限购↔不限购。
+
+    AdminShopListingScreen.java (300x260)
+     ┃ 世界商店上架界面，与ListingSetupScreen相似但不消耗背包物品。
+
+    AdminTransactionDialog.java (260x220) [v1.1新增]
+     ┃ 世界商店购买/卖出弹窗，物品预览+余额+数量输入±1按钮+花费/剩余+确认/取消。
+
+    ConfirmDialog.java (260x200)
+     ┃ 模态确认弹窗，交易明细+透支警告。确认/取消→回到PlayerMarketScreen。
+     ┃ Escape键关闭，onConfirm异常try-catch防护。
+
+    RedundantWarehouseScreen.java (340x270) [v1.1新增]
+     ┃ 6×9网格展示冗余仓库，多选取回，一键取回+二次确认(闪烁警告)。倒计时显示。
+
+九、物品系统 —— item/
+    QuotationTerminalItem.java
+     ┃ 唯一入口，stacksTo=1。右键→主菜单(携带余额)。
+    TerminalEventHandler.java
+     ┃ 右键玩家→提示 /msp pay <玩家名> <金额> 转账。
+    TerminalKeyHandler.java
+     ┃ 客户端按 I 键→发包→服务端同步余额后打开MainMenuScreen[v1.1]。
+
+十、指令系统 —— command/ (5个指令族)
+    MSPPCommands.java (/msp) — OP权限
+     ┃ /msp pay <player> <amount>  — 玩家间转账(所有人可用，DoubleArgumentType)
+     ┃ /msp get/set/add/cut <player> <amount>  — 余额管理(OP，double参数)
+
+    MSPBCommands.java (/MSPB) — OP权限
+     ┃ /MSPB up <价格> [数量]  — 以"服务器"名义上架(double价格，不可堆叠→强制1)
+     ┃ /MSPB dn <报价单ID>    — 按展示ID下架(在线→退回/掉落，离线→冗余仓库)
+
+    MSPEditCommands.java (/MSPEdit) — OP权限
+     ┃ /MSPEdit true/false  — 开启/关闭客户端编辑模式
+
+    MSPBlacklistCommands.java (/MSPBlacklist) — OP权限
+     ┃ /MSPBlacklist add/remove/list — 管理报价黑名单
+
+    MSPTestCommands.java (/MSPtest) — OP权限 [v1.1新增]
+     ┃ /MSPtest OnlineMode T/F — 模拟在线/离线，测试冗余仓库
+
+十一、主入口 —— MyShopPanel.java
+     ┃ @Mod 入口。注册物品(QUOTATION_TERMINAL)、创造标签页、网络通信。
+     ┃ onServerStarting → AdminShopConfig.loadInstance() + MarketBlacklist.loadInstance()
+     ┃ onRegisterCommands → 注册全部5个指令族
+     ┃ onServerTick → 冗余仓库清理(每20tick) + 登录提醒(1200tick延迟)[v1.1]
+     ┃ onPlayerLogin → 标记1200tick后检查冗余仓库通知[v1.1]
+
+================================================================================
+【数据存储总览】
+================================================================================
+  ./config/msp_quote.toml             ← 世界商店条目(全局共享,TOML,price:double)
+  ./config/msp_blacklist.toml         ← 报价黑名单(全局共享,TOML)
+  <世界>/data/msp_points.dat          ← 玩家MSPP点数(double,每存档独立)
+  <世界>/data/player_market_data.dat  ← 玩家市场挂单(每存档独立,price:double)
+  <世界>/data/redundant_warehouse.dat ← 冗余仓库(每存档独立)[v1.1]
+
+================================================================================
+【世界商店交易流程】[v1.1]
+================================================================================
+  购买模式(SELLING条目)：左键→购买弹窗(数量/花费/剩余)→确认→扣款+给物品+库存-1
+  出售模式(BUYING条目)：左键→卖出弹窗(数量/收入/剩余)→确认→扣物品+获得MSPP+库存+1
+                     右键→1.3x买回(服务端计算价格)→扣款+给物品+库存-1
+  编辑模式：新增(不消耗物品上架)/删除/+1-1+10-10库存/售卖切换/库存开关
+
+================================================================================
+【玩家市场上架规则】
+================================================================================
+  不可堆叠物品(maxStackSize≤1)→忽略数量输入，强制上架1个
+  堆叠物品→数量不超过maxStackSize和持有量
+  黑名单物品→客户端+服务端双重拦截，不可上架
+  默认黑名单: my_shop_panel:quotation_terminal (报价终端自身)
+
+================================================================================
+【v1.1 安全加固】
+================================================================================
+  1. 买回价格服务端独立计算——不信任客户端传入的price参数
+  2. price/quantity 负数防护——handle入口统一拦截
+  3. 世界商店库存检查改为 stock<quantity（原为stock<=0）
+  4. 库存加减使用long防溢出
+  5. STOCK_ADJUST改为int传输，避免double→int截断
+  6. S2C_AdminShopDataPacket 添加65536条目上限
+  7. 市场购买竞态回滚——removeListing失败自动退款
+  8. 金额四舍五入——ShopUtils.roundAmount()防浮点误差累积
+  9. fmt()统一到ShopUtils——修复NaN/∞无防护和浮点取整误判
+  10. listingId=null 改用ZERO_UUID哨兵值
+
+================================================================================
+【关键设计决策】
+================================================================================
+  1. MSPP为double → 支持小数价格和负数余额，存储和运算使用roundAmount舍入
+  2. 数据包携带余额 → 所有S2C回复包均同步余额
+  3. 世界商店库存 → 非无限时购买-1、卖出+1、买回-1、售空不可买
+  4. 返回上级 → 所有返回按钮回到MainMenuScreen
+  5. 背包满 → 购买/下架时物品丢在地上(drop)
+  6. 不可堆叠强制量1 → 客户端+服务端+指令三重保证
+  7. 快捷键I → 发包到服务端同步余额后打开主菜单，不绕过服务端
+  8. 冗余仓库 → 离线下架物品进入，5小时自动清理，取回重置倒计时
+  9. 登录提醒 → tick计数延迟1200tick，不用Thread.sleep
+  10. 世界商店交易弹窗 → 数量输入±1按钮+花费/剩余计算+透支警告

@@ -1,0 +1,8 @@
+{
+  "loader": "forge:item_layers",
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "my_shop_panel:item/quotation_terminal"
+  },
+  "emissive": true
+}
