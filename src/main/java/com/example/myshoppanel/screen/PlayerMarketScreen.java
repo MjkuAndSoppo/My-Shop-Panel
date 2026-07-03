@@ -5,6 +5,7 @@ import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.network.packet.C2S_ConfirmTransactionPacket;
 import com.example.myshoppanel.network.packet.C2S_DelistItemPacket;
 import com.example.myshoppanel.network.packet.C2S_RequestMarketDataPacket;
+import com.example.myshoppanel.shop.DynamicSystemData;
 import com.example.myshoppanel.shop.PlayerMarketListing;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -23,8 +24,8 @@ import java.util.UUID;
 public class PlayerMarketScreen extends BaseStoreScreen {
 
     private static final int SIDEBAR_WIDTH = 82;
-    private static final int DIVIDER_X_OFFSET = 254;
 
+    private int dividerX; // = imageWidth - SIDEBAR_WIDTH - 6
     private List<PlayerMarketListing> allListings = new ArrayList<>();
     private List<PlayerMarketListing> myListings = new ArrayList<>();
     private boolean showMyListings = false;
@@ -41,9 +42,10 @@ public class PlayerMarketScreen extends BaseStoreScreen {
     @Override
     protected void init() {
         super.init();
+        dividerX = imageWidth - SIDEBAR_WIDTH - 6;
         ROWS_PER_PAGE = computeRowsPerPage(24, 32, 35);
 
-        int sideX = guiLeft + DIVIDER_X_OFFSET + 2;
+        int sideX = guiLeft + dividerX + 2;
         int btnW = SIDEBAR_WIDTH - 6;
 
         // === 动态：购买/下架按钮 ===
@@ -105,7 +107,7 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         int bottomY = guiTop + imageHeight - 26;
 
         // 页码居中，翻页按钮在页码两边
-        int mainWidth = DIVIDER_X_OFFSET - 4;
+        int mainWidth = dividerX - 4;
         List<PlayerMarketListing> totalList = showMyListings ? myListings : allListings;
         int totalPages = Math.max(1, (totalList.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
 
@@ -162,14 +164,14 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         // 表头
         int headerY = guiTop + 18;
         int col1 = guiLeft + 8;
-        int col2 = guiLeft + 62;
-        int col3 = guiLeft + DIVIDER_X_OFFSET - 30;
+        int col2 = guiLeft + 104;
+        int col3 = guiLeft + dividerX - 30;
         graphics.drawString(font, Component.translatable("my_shop_panel.label.user").getString(), col1, headerY, 0xFF888888);
         graphics.drawString(font, Component.translatable("my_shop_panel.label.quoted_items").getString(), col2, headerY, 0xFF888888);
         graphics.drawString(font, Component.translatable("my_shop_panel.label.price").getString(), col3 - font.width(Component.translatable("my_shop_panel.label.price").getString()), headerY, 0xFF888888);
 
         int sepY = guiTop + 28;
-        graphics.fill(guiLeft + 4, sepY, guiLeft + DIVIDER_X_OFFSET, sepY + 1, 0xFF_4A4A6A);
+        graphics.fill(guiLeft + 4, sepY, guiLeft + dividerX, sepY + 1, 0xFF_4A4A6A);
 
         // 列表
         List<PlayerMarketListing> displayList = showMyListings ? myListings : allListings;
@@ -188,22 +190,24 @@ public class PlayerMarketScreen extends BaseStoreScreen {
                 boolean isSelected = (selectedListingId != null
                         && selectedListingId.equals(listing.getListingId()))
                         || (showMyListings && multiSelectedIds.contains(listing.getListingId()));
-                boolean hovered = mouseX >= guiLeft + 4 && mouseX <= guiLeft + DIVIDER_X_OFFSET
+                boolean hovered = mouseX >= guiLeft + 4 && mouseX <= guiLeft + dividerX
                         && mouseY >= rowY - 1 && mouseY <= rowY + rowH - 1;
 
                 if (isSelected) {
-                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + DIVIDER_X_OFFSET, rowY + rowH - 1, 0x44_FFFFFF);
-                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + DIVIDER_X_OFFSET, rowY, 0xFF_FFFFFF);
-                    graphics.fill(guiLeft + 4, rowY + rowH - 1, guiLeft + DIVIDER_X_OFFSET, rowY + rowH, 0xFF_FFFFFF);
+                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + dividerX, rowY + rowH - 1, 0x44_FFFFFF);
+                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + dividerX, rowY, 0xFF_FFFFFF);
+                    graphics.fill(guiLeft + 4, rowY + rowH - 1, guiLeft + dividerX, rowY + rowH, 0xFF_FFFFFF);
                     graphics.fill(guiLeft + 4, rowY, guiLeft + 5, rowY + rowH - 1, 0xFF_FFFFFF);
-                    graphics.fill(guiLeft + DIVIDER_X_OFFSET - 1, rowY, guiLeft + DIVIDER_X_OFFSET, rowY + rowH - 1, 0xFF_FFFFFF);
+                    graphics.fill(guiLeft + dividerX - 1, rowY, guiLeft + dividerX, rowY + rowH - 1, 0xFF_FFFFFF);
                 } else if (hovered) {
-                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + DIVIDER_X_OFFSET, rowY + rowH - 1, 0x33_FFFFFF);
+                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + dividerX, rowY + rowH - 1, 0x33_FFFFFF);
                 }
 
                 // 用户列: #displayId 卖家名
                 String seller = "#" + listing.getDisplayId() + " " + listing.getSellerName();
-                graphics.drawString(font, "§f" + truncate(seller, 10), col1, rowY + 3, 0xFFFFFFFF);
+                boolean isBot = listing.getSellerUUID().equals(DynamicSystemData.BOT_UUID);
+                String sellerText = isBot ? "§9" + truncate(seller, 16) : "§f" + truncate(seller, 16);
+                graphics.drawString(font, sellerText, col1, rowY + 3, 0xFFFFFFFF);
 
                 // 物品图标 + 名称 x数量
                 graphics.renderItem(listing.getItem(), col2, rowY);
@@ -220,16 +224,16 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         }
 
         int bottomSepY = guiTop + imageHeight - 32;
-        graphics.fill(guiLeft + 4, bottomSepY, guiLeft + DIVIDER_X_OFFSET, bottomSepY + 1, 0xFF_4A4A6A);
+        graphics.fill(guiLeft + 4, bottomSepY, guiLeft + dividerX, bottomSepY + 1, 0xFF_4A4A6A);
 
         int totalPages = Math.max(1, (displayList.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
         String pageStr = Component.translatable("my_shop_panel.status.page", page + 1, totalPages).getString();
         // 页码居中于翻页按钮之间
-        int mainWidth = DIVIDER_X_OFFSET - 4;
+        int mainWidth = dividerX - 4;
         drawCenteredInMain(graphics, pageStr, guiTop + imageHeight - 23, 0xFFAAAAAA);
 
         // 右边栏
-        int sX = guiLeft + DIVIDER_X_OFFSET;
+        int sX = guiLeft + dividerX;
 
         String balanceText = Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format();
         graphics.drawString(font, balanceText, sX + 4, guiTop + 8, 0xFFFFFFFF);
@@ -248,7 +252,7 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         graphics.drawString(font, Component.translatable("my_shop_panel.mkt.my_listings").getString(), sX + 4, guiTop + 59, 0xFF888888);
         graphics.drawString(font, Component.translatable("my_shop_panel.mkt.list_btn").getString(), sX + 4, guiTop + 85, 0xFF888888);
 
-        graphics.fill(guiLeft + DIVIDER_X_OFFSET, guiTop + 4, guiLeft + DIVIDER_X_OFFSET + 1,
+        graphics.fill(guiLeft + dividerX, guiTop + 4, guiLeft + dividerX + 1,
                 guiTop + imageHeight - 4, 0xFF_4A4A6A);
     }
 
@@ -260,7 +264,7 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         boolean isRightClick = button == 1;
 
         if ((isLeftClick || (showMyListings && isRightClick))
-                && mouseX >= guiLeft + 4 && mouseX <= guiLeft + DIVIDER_X_OFFSET
+                && mouseX >= guiLeft + 4 && mouseX <= guiLeft + dividerX
                 && mouseY < bottomBarY) {
             List<PlayerMarketListing> displayList = showMyListings ? myListings : allListings;
             int listTop = guiTop + 31;
@@ -328,19 +332,13 @@ public class PlayerMarketScreen extends BaseStoreScreen {
             return;
         }
 
-        final UUID listingIdToBuy = selected.getListingId();
-
-        minecraft.setScreen(new ConfirmDialog(
-                "购买 §6" + selected.getItem().getDisplayName().getString()
-                        + " x" + selected.getItem().getCount()
-                        + "\n\n卖家: §6" + selected.getSellerName()
-                        + "\n价格: §6" + ClientBalanceData.format(selected.getPrice()),
-                false,
+        minecraft.setScreen(new MarketBuyDialog(selected,
                 () -> {
-                    NetworkHandler.sendToServer(new C2S_ConfirmTransactionPacket(listingIdToBuy));
-                    selectedListingId = null;
-                },
-                () -> {}
+                    if (minecraft != null) {
+                        selectedListingId = null;
+                        minecraft.setScreen(new PlayerMarketScreen());
+                    }
+                }
         ));
     }
 
@@ -408,7 +406,7 @@ public class PlayerMarketScreen extends BaseStoreScreen {
     }
 
     private void drawCenteredInMain(GuiGraphics graphics, String text, int y, int color) {
-        int mainWidth = DIVIDER_X_OFFSET - 4;
+        int mainWidth = dividerX - 4;
         int x = guiLeft + mainWidth / 2 - font.width(text) / 2;
         graphics.drawString(font, text, x, y, color);
     }

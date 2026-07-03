@@ -3,6 +3,7 @@ package com.example.myshoppanel.network.packet;
 import com.example.myshoppanel.economy.MSPPointsSavedData;
 import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.shop.RedundantWarehouseSavedData;
+import com.example.myshoppanel.shop.ShopUtils;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -55,22 +56,26 @@ public class C2S_RetrieveWarehouseItemsPacket {
             MSPPointsSavedData points = MSPPointsSavedData.get(player.serverLevel());
 
             int retrieved = 0;
+            int warehoused = 0;
             // 倒序移除避免索引偏移
             for (int i = msg.pageIndices.length - 1; i >= 0; i--) {
                 int pi = msg.pageIndices[i];
                 int ii = msg.itemIndices[i];
                 ItemStack item = warehouse.removeItem(player.getUUID(), pi, ii);
                 if (!item.isEmpty()) {
-                    if (!player.getInventory().add(item)) {
-                        player.drop(item, false);
-                    }
+                    // 按 maxStackSize 拆分，背包满则溢出回仓库
+                    int overflow = ShopUtils.giveItemWithOverflow(player, item, true);
+                    warehoused += overflow;
                     retrieved++;
                 }
             }
 
             if (retrieved > 0) {
-                player.sendSystemMessage(Component.literal(
-                        "§a[MyShopPanel] 已从冗余仓库取回 §6" + retrieved + " §a件物品！"));
+                String msg2 = "§a[MyShopPanel] 已从冗余仓库取回 §6" + retrieved + " §a件物品！";
+                if (warehoused > 0) {
+                    msg2 += " §e（背包已满，§6" + warehoused + " §e个物品已放回仓库）";
+                }
+                player.sendSystemMessage(Component.literal(msg2));
             } else {
                 player.sendSystemMessage(Component.literal(
                         "§c[MyShopPanel] 取回失败：物品可能已过期被清除。"));

@@ -33,11 +33,21 @@ public class C2S_ConfirmTransactionPacket {
     private final int quantity;
     private final String adminEntryId;
 
+    /** 市场购买（整单购买，兼容旧逻辑） */
     public C2S_ConfirmTransactionPacket(UUID listingId) {
         this.type = TransactionType.MARKET_BUY;
         this.listingId = listingId;
         this.price = 0;
-        this.quantity = 1;
+        this.quantity = -1; // -1 表示整单购买
+        this.adminEntryId = null;
+    }
+
+    /** 市场购买（指定数量） */
+    public C2S_ConfirmTransactionPacket(UUID listingId, int quantity) {
+        this.type = TransactionType.MARKET_BUY;
+        this.listingId = listingId;
+        this.price = 0;
+        this.quantity = quantity;
         this.adminEntryId = null;
     }
 
@@ -81,7 +91,7 @@ public class C2S_ConfirmTransactionPacket {
             }
 
             switch (msg.type) {
-                case MARKET_BUY -> handleMarketBuy(player, msg.listingId);
+                case MARKET_BUY -> handleMarketBuy(player, msg.listingId, msg.quantity);
                 case MARKET_LIST -> player.sendSystemMessage(Component.literal(
                         "§e[MyShopPanel] 上架请通过上架界面操作。"));
                 case ADMIN_BUY -> handleAdminBuy(player, msg.adminEntryId, msg.quantity);
@@ -92,7 +102,7 @@ public class C2S_ConfirmTransactionPacket {
         ctx.get().setPacketHandled(true);
     }
 
-    private static void handleMarketBuy(ServerPlayer buyer, UUID listingId) {
+    private static void handleMarketBuy(ServerPlayer buyer, UUID listingId, int quantity) {
         PlayerMarketSavedData marketData = PlayerMarketSavedData.get(buyer.serverLevel());
         PlayerMarketListing listing = marketData.getListing(listingId).orElse(null);
         if (listing == null) {
@@ -103,16 +113,27 @@ public class C2S_ConfirmTransactionPacket {
             buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 该挂单物品数据异常。"));
             return;
         }
+
+        int stackCount = listing.getItem().getCount();
+        int buyQty = (quantity <= 0) ? stackCount : Math.min(quantity, stackCount);
+
+        // 按比例计算价格（精度0.01）
+        double unitPrice = ShopUtils.roundAmount(listing.getPrice() / stackCount);
+        double totalCost = ShopUtils.roundAmount(unitPrice * buyQty);
+
         MSPPointsSavedData points = MSPPointsSavedData.get(buyer.serverLevel());
         double bal = points.getPoints(buyer.getUUID());
-        if (bal < listing.getPrice()) {
+        if (bal < totalCost) {
             buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 余额不足！需要 §6"
-                    + ShopUtils.fmt(listing.getPrice()) + "§c，当前余额: §6" + ShopUtils.fmt(bal)));
+                    + ShopUtils.fmt(totalCost) + "§c，当前余额: §6" + ShopUtils.fmt(bal)));
             return;
         }
-        boolean ok = TransactionService.commitMarketBuy(buyer, listing, marketData);
-        if (ok) {
+
+        int warehoused = TransactionService.commitMarketBuy(buyer, listing, marketData, buyQty);
+        if (warehoused >= 0) {
             buyer.sendSystemMessage(Component.literal("§a[MyShopPanel] 交易成功！"));
+            ShopUtils.sendWarehouseOverflowMsg(buyer, warehoused,
+                    listing.getItem().getDisplayName().getString());
         } else {
             buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 交易失败：该挂单可能已被抢先购买，已退款。"));
         }
@@ -150,16 +171,22 @@ public class C2S_ConfirmTransactionPacket {
         }
         points.cutPoints(buyer.getUUID(), totalCost);
         ItemStack item = getItemStack(entry.getItemRegistryName());
+        int warehoused = 0;
         if (!item.isEmpty()) {
             item.setCount(quantity);
-            if (!buyer.getInventory().add(item)) buyer.drop(item, false);
+            warehoused = ShopUtils.giveItemWithOverflow(buyer, item);
         }
         if (!entry.isInfiniteStock()) {
             entry.setStock(entry.getStock() - quantity);
             config.save();
         }
+        // 100% 利润注入机器人账户
+        com.example.myshoppanel.shop.DynamicSystemService.injectBotFunds(
+                buyer.serverLevel(), totalCost, "世界商店出售-" + entry.getItemDisplayName());
         buyer.sendSystemMessage(Component.literal("§a[MyShopPanel] 购买成功！获得了 §6"
                 + entry.getItemDisplayName() + " x" + quantity));
+        ShopUtils.sendWarehouseOverflowMsg(buyer, warehoused,
+                item.isEmpty() ? "物品" : item.getDisplayName().getString());
         NetworkHandler.sendToPlayer(new S2C_AdminShopDataPacket(config.getAllEntries(),
                 points.getPoints(buyer.getUUID())), buyer);
     }
@@ -257,17 +284,24 @@ public class C2S_ConfirmTransactionPacket {
         }
         points.cutPoints(buyer.getUUID(), totalCost);
         ItemStack item = getItemStack(entry.getItemRegistryName());
+        int warehousedBb = 0;
         if (!item.isEmpty()) {
             item.setCount(quantity);
-            if (!buyer.getInventory().add(item)) buyer.drop(item, false);
+            warehousedBb = ShopUtils.giveItemWithOverflow(buyer, item);
         }
         if (!entry.isInfiniteStock()) {
             entry.setStock(entry.getStock() - quantity);
             config.save();
         }
+        // 25% 买回差价注入机器人账户
+        double profit = ShopUtils.roundAmount((buybackUnitPrice - entry.getPrice()) * quantity);
+        com.example.myshoppanel.shop.DynamicSystemService.injectBotFunds(
+                buyer.serverLevel(), profit, "世界商店买回-" + entry.getItemDisplayName());
         buyer.sendSystemMessage(Component.literal("§a[MyShopPanel] 以§c1.3倍§a价格买回 §6"
                 + entry.getItemDisplayName() + " x" + quantity + " §a花费 §6"
                 + ShopUtils.fmt(totalCost)));
+        ShopUtils.sendWarehouseOverflowMsg(buyer, warehousedBb,
+                item.isEmpty() ? "物品" : item.getDisplayName().getString());
         NetworkHandler.sendToPlayer(new S2C_AdminShopDataPacket(config.getAllEntries(),
                 points.getPoints(buyer.getUUID())), buyer);
     }

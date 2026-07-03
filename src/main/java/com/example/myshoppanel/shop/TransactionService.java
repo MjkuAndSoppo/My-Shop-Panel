@@ -42,34 +42,54 @@ public class TransactionService {
     }
 
     /**
-     * 执行市场购买。背包满时物品掉落地上。
+     * 执行市场购买。
+     * @return 放入冗余仓库的数量（-1 = 失败）
      */
-    public static boolean commitMarketBuy(ServerPlayer buyer, PlayerMarketListing listing,
-                                       PlayerMarketSavedData marketData) {
-        // 原子性：先扣款，再尝试放物品
+    public static int commitMarketBuy(ServerPlayer buyer, PlayerMarketListing listing,
+                                       PlayerMarketSavedData marketData, int buyQty) {
+        int stackCount = listing.getItem().getCount();
+        int actualQty = Math.min(buyQty, stackCount);
+        if (actualQty <= 0) return -1;
+
+        // 按比例计算价格
+        double unitPrice = ShopUtils.roundAmount(listing.getPrice() / stackCount);
+        double totalCost = ShopUtils.roundAmount(unitPrice * actualQty);
+
         MSPPointsSavedData points = MSPPointsSavedData.get(buyer.serverLevel());
         double bal = points.getPoints(buyer.getUUID());
-        if (bal < listing.getPrice()) return false;
+        if (bal < totalCost) return -1;
 
-        points.cutPoints(buyer.getUUID(), ShopUtils.roundAmount(listing.getPrice()));
-        points.addPoints(listing.getSellerUUID(), ShopUtils.roundAmount(listing.getPrice()));
+        // 扣款并转账
+        points.cutPoints(buyer.getUUID(), totalCost);
+        points.addPoints(listing.getSellerUUID(), totalCost);
 
-        ItemStack item = listing.getItem();
-        if (!item.isEmpty()) {
-            if (!buyer.getInventory().add(item)) {
-                buyer.drop(item, false);
-            }
+        // 给予物品（背包满时进冗余仓库）
+        ItemStack toGive = listing.getItem().copy();
+        toGive.setCount(actualQty);
+        int warehoused = ShopUtils.giveItemWithOverflow(buyer, toGive);
+
+        if (actualQty >= stackCount) {
+            // 整单售出，移除挂单
+            marketData.removeListing(listing.getListingId());
+        } else {
+            // 部分售出，减少挂单数量并保留
+            int remaining = stackCount - actualQty;
+            double remainingPrice = ShopUtils.roundAmount(unitPrice * remaining);
+            marketData.removeListing(listing.getListingId());
+            ItemStack remainingItem = listing.getItem().copy();
+            remainingItem.setCount(remaining);
+            PlayerMarketListing newListing = new PlayerMarketListing(
+                    UUID.randomUUID(),
+                    listing.getSellerUUID(),
+                    listing.getSellerName(),
+                    remainingItem,
+                    remainingPrice,
+                    System.currentTimeMillis(),
+                    listing.getDisplayId()
+            );
+            marketData.addListing(newListing);
         }
-
-        boolean removed = marketData.removeListing(listing.getListingId());
-        if (!removed) {
-            // 挂单已被他人抢先购买，退款
-            points.addPoints(buyer.getUUID(), ShopUtils.roundAmount(listing.getPrice()));
-            points.cutPoints(listing.getSellerUUID(), ShopUtils.roundAmount(listing.getPrice()));
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 该挂单已被抢先购买，已退款。"));
-            return false;
-        }
-        return true;
+        return warehoused;
     }
 
     public static void commitMarketList(ServerPlayer seller, ItemStack item, double price,
@@ -123,12 +143,11 @@ public class TransactionService {
         // 模拟离线测试模式
         boolean simulatedOffline = SimulateOfflineData.isSimulatedOffline(sellerUUID);
         if (seller != null && !simulatedOffline) {
-            // 卖家在线，直接退回
-            if (!seller.getInventory().add(item)) {
-                seller.drop(item, false);
-            }
+            int warehoused = ShopUtils.giveItemWithOverflow(seller, item);
             seller.sendSystemMessage(Component.literal(
                     "§a[MyShopPanel] 你的报价单已被管理员下架，物品已退回背包。"));
+            ShopUtils.sendWarehouseOverflowMsg(seller, warehoused,
+                    item.getDisplayName().getString());
         } else {
             // 卖家离线，进入冗余仓库
             RedundantWarehouseSavedData warehouse =

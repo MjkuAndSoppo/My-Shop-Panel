@@ -3,6 +3,7 @@ package com.example.myshoppanel.screen;
 import com.example.myshoppanel.economy.ClientBalanceData;
 import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.network.packet.C2S_ListMarketItemPacket;
+import com.example.myshoppanel.shop.ListingFeeCalculator;
 import com.example.myshoppanel.shop.MarketBlacklist;
 import com.example.myshoppanel.shop.ShopUtils;
 import net.minecraft.client.gui.GuiGraphics;
@@ -85,6 +86,25 @@ public class ListingSetupScreen extends BaseStoreScreen {
         // 右上角余额
         String balanceText = Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format();
         graphics.drawString(font, balanceText, guiLeft + imageWidth - font.width(balanceText) - 8, guiTop + 8, 0xFFFFFFFF);
+
+        // 实时手续费（余额下方）
+        if (!selectedItem.isEmpty()) {
+            double price;
+            int qty;
+            try {
+                price = Double.parseDouble(priceInput.getValue());
+                qty = Integer.parseInt(qtyInput.getValue());
+            } catch (NumberFormatException e) {
+                price = 0;
+                qty = 0;
+            }
+            if (price > 0 && qty > 0) {
+                double fee = ListingFeeCalculator.calculateFee(price, qty, selectedItem);
+                double pct = ListingFeeCalculator.getFeePercentage(price, qty, selectedItem);
+                String feeText = "§7手续费: §6" + ShopUtils.fmt(fee) + " §7(" + String.format("%.1f", pct) + "%)";
+                graphics.drawString(font, feeText, guiLeft + imageWidth - font.width(feeText) - 8, guiTop + 22, 0xFFFFFFFF);
+            }
+        }
 
         // 选中的物品预览
         if (!selectedItem.isEmpty()) {

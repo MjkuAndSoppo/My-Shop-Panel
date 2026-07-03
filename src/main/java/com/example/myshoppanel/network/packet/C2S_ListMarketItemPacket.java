@@ -1,5 +1,8 @@
 package com.example.myshoppanel.network.packet;
 
+import com.example.myshoppanel.economy.MSPPointsSavedData;
+import com.example.myshoppanel.shop.DynamicSystemService;
+import com.example.myshoppanel.shop.ListingFeeCalculator;
 import com.example.myshoppanel.shop.MarketBlacklist;
 import com.example.myshoppanel.shop.PlayerMarketSavedData;
 import com.example.myshoppanel.shop.ShopUtils;
@@ -83,12 +86,29 @@ public class C2S_ListMarketItemPacket {
             }
             ItemStack toList = msg.item.copy();
             toList.setCount(actualQty);
+
+            // 计算并扣除手续费
+            double fee = ListingFeeCalculator.calculateFee(msg.price, actualQty, toList);
+            var points = MSPPointsSavedData.get(player.serverLevel());
+            double bal = points.getPoints(player.getUUID());
+            if (fee > 0 && bal < fee) {
+                player.sendSystemMessage(Component.literal("§c[MyShopPanel] 余额不足以支付手续费！需要 §6"
+                        + ShopUtils.fmt(fee) + "§c，当前余额: §6" + ShopUtils.fmt(bal)));
+                return;
+            }
+            if (fee > 0) {
+                points.cutPoints(player.getUUID(), fee);
+                DynamicSystemService.injectBotFunds(player.serverLevel(), fee, "上架手续费");
+            }
+
             PlayerMarketSavedData marketData = PlayerMarketSavedData.get(player.serverLevel());
             TransactionService.commitMarketList(player, toList, msg.price, marketData);
+            String feeMsg = fee > 0 ? " §7(手续费: §6" + ShopUtils.fmt(fee) + "§7)" : "";
             player.sendSystemMessage(Component.literal(
                     "§a[MyShopPanel] 上架成功！§f" + toList.getDisplayName().getString()
                             + " x" + toList.getCount()
-                            + " §f标价 §6" + ShopUtils.fmt(msg.price)));
+                            + " §f标价 §6" + ShopUtils.fmt(msg.price)
+                            + feeMsg));
         });
         ctx.get().setPacketHandled(true);
     }

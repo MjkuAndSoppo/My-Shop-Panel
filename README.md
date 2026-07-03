@@ -19,6 +19,7 @@
 - **三步提交** — Prepare → Confirm → Commit，取消即回滚，超时/掉线零风险
 - **透支警告** — 负余额操作前高亮弹窗确认
 - **黑名单机制** — 可配置禁止上架的物品
+- **ProjectE 联动** — 自动读取物品 EMC 值作为默认定价
 
 ---
 
@@ -178,6 +179,14 @@ net/my_shop_panel/
     ├── ShopLang.java              # 文本常量
     └── ShopUtils.java             # 工具方法
 ```
+
+---
+
+## 模组联动
+
+### ProjectE
+
+安装 ProjectE 后，世界商店新增商品时将**自动读取物品的 EMC 值作为默认标价**，无需手动查价。通过反射调用 `ProjectEAPI#getEMCProxy().getValue()`，不硬依赖 ProjectE——未安装时仍可正常使用（默认标价为 1 MSPP）。
 
 ---
 

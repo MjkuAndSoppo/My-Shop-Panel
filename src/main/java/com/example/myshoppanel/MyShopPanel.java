@@ -2,6 +2,7 @@ package com.example.myshoppanel;
 
 import com.example.myshoppanel.command.MSPBlacklistCommands;
 import com.example.myshoppanel.command.MSPBCommands;
+import com.example.myshoppanel.command.MSPDynamicCommands;
 import com.example.myshoppanel.command.MSPEditCommands;
 import com.example.myshoppanel.command.MSPPCommands;
 import com.example.myshoppanel.command.MSPTestCommands;
@@ -10,6 +11,9 @@ import com.example.myshoppanel.item.TerminalEventHandler;
 import com.example.myshoppanel.item.TerminalKeyHandler;
 import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.shop.AdminShopConfig;
+import com.example.myshoppanel.shop.DynamicSystemData;
+import com.example.myshoppanel.shop.DynamicSystemService;
+import com.example.myshoppanel.shop.ListingFeeCalculator;
 import com.example.myshoppanel.shop.MarketBlacklist;
 import com.example.myshoppanel.shop.RedundantWarehouseSavedData;
 import com.mojang.logging.LogUtils;
@@ -84,8 +88,11 @@ public class MyShopPanel
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event)
     {
+        var configDir = event.getServer().getServerDirectory().toPath().resolve("config").resolve("my_shop_panel");
         AdminShopConfig.loadInstance();
         MarketBlacklist.loadInstance();
+        ListingFeeCalculator.load(configDir);
+        DynamicSystemData.loadInstance(configDir);
         LOGGER.info("[MyShopPanel] Server starting - My Shop Panel is ready!");
     }
 
@@ -96,7 +103,8 @@ public class MyShopPanel
         MSPEditCommands.register(event.getDispatcher());
         MSPBlacklistCommands.register(event.getDispatcher());
         MSPTestCommands.register(event.getDispatcher());
-        LOGGER.info("[MyShopPanel] MSPP, MSPB, MSPEdit, MSPBlacklist & MSPTest commands registered.");
+        MSPDynamicCommands.register(event.getDispatcher());
+        LOGGER.info("[MyShopPanel] All commands registered.");
     }
 
     /**
@@ -116,6 +124,9 @@ public class MyShopPanel
                 RedundantWarehouseSavedData.get(level).tick();
             }
         }
+
+        // 动态系统巡检（在主世界执行）
+        DynamicSystemService.onServerTick(server.overworld(), tick);
 
         // 登录后1分钟(1200tick)提醒
         if (!warehouseDelayTicks.isEmpty()) {

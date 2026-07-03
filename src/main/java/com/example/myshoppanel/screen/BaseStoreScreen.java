@@ -18,6 +18,8 @@ public abstract class BaseStoreScreen extends Screen {
 
     protected static final int DEFAULT_WIDTH = 256;
     protected static final int DEFAULT_HEIGHT = 200;
+    protected static final int MAX_IMAGE_WIDTH = 600;
+    protected static final int MAX_IMAGE_HEIGHT = 480;
 
     protected int guiLeft;
     protected int guiTop;
@@ -37,10 +39,16 @@ public abstract class BaseStoreScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        // 根据屏幕高度动态调整界面高度（留 40px 边距，最大 480px）
-        this.imageHeight = Math.max(DEFAULT_HEIGHT, Math.min(this.height - 40, 480));
+        // 根据屏幕尺寸动态调整界面大小（高度自适应，宽度横向扩宽）
+        this.imageHeight = Math.max(DEFAULT_HEIGHT, Math.min(this.height - 40, MAX_IMAGE_HEIGHT));
+        this.imageWidth = Math.max(DEFAULT_WIDTH, Math.min(this.width - 40, getMaxImageWidth()));
         this.guiLeft = (this.width - imageWidth) / 2;
         this.guiTop = (this.height - imageHeight) / 2;
+    }
+
+    /** 子类可重写以限制最大宽度 */
+    protected int getMaxImageWidth() {
+        return MAX_IMAGE_WIDTH;
     }
 
     /**

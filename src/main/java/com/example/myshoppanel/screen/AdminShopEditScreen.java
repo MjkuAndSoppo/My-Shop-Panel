@@ -18,7 +18,7 @@ import java.util.List;
 public class AdminShopEditScreen extends BaseStoreScreen {
 
     private static final int SIDEBAR_WIDTH = 90;
-    private static final int DIVIDER_X_OFFSET = 250;
+    private int dividerX; // = imageWidth - SIDEBAR_WIDTH - 10
 
     private List<AdminShopEntry> entries = new ArrayList<>();
     private List<AdminShopEntry> displayEntries = new ArrayList<>();
@@ -34,9 +34,10 @@ public class AdminShopEditScreen extends BaseStoreScreen {
     @Override
     protected void init() {
         super.init();
+        dividerX = imageWidth - SIDEBAR_WIDTH - 10;
         ROWS_PER_PAGE = computeRowsPerPage(28, 44, 35);
 
-        int sideX = guiLeft + DIVIDER_X_OFFSET + 5;
+        int sideX = guiLeft + dividerX + 5;
         int btnW = SIDEBAR_WIDTH - 10;
 
         // 新增按钮（打开上架界面）
@@ -89,7 +90,7 @@ public class AdminShopEditScreen extends BaseStoreScreen {
         int bottomY = guiTop + imageHeight - 26;
 
         // 页码居中，翻页按钮在页码两边
-        int mainWidth = DIVIDER_X_OFFSET - 4;
+        int mainWidth = dividerX - 4;
         int totalPages = Math.max(1, (displayEntries.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
         int pageBlockWidth = 24 + font.width(PAGE_SAMPLE) + 24;
         int pageCenterX = guiLeft + mainWidth / 2;
@@ -188,7 +189,7 @@ public class AdminShopEditScreen extends BaseStoreScreen {
         graphics.drawString(font, Component.translatable("my_shop_panel.label.quote_column").getString(), guiLeft + 10, headerY, 0xFF888888);
 
         int sepY = guiTop + 32;
-        graphics.fill(guiLeft + 4, sepY, guiLeft + DIVIDER_X_OFFSET, sepY + 1, 0xFF_4A4A6A);
+        graphics.fill(guiLeft + 4, sepY, guiLeft + dividerX, sepY + 1, 0xFF_4A4A6A);
 
         int listTop = sepY + 5;
         int rowH = 28;
@@ -203,14 +204,14 @@ public class AdminShopEditScreen extends BaseStoreScreen {
                 int rowY = listTop + (i - startIdx) * rowH;
 
                 boolean isSelected = entry.getEntryId().equals(selectedEntryId);
-                boolean hovered = mouseX >= guiLeft + 4 && mouseX <= guiLeft + DIVIDER_X_OFFSET
+                boolean hovered = mouseX >= guiLeft + 4 && mouseX <= guiLeft + dividerX
                         && mouseY >= rowY - 1 && mouseY <= rowY + rowH - 1;
 
                 if (isSelected) {
-                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + DIVIDER_X_OFFSET, rowY + rowH - 1, 0x66_FFFFFF);
-                    graphics.fill(guiLeft + 5, rowY, guiLeft + DIVIDER_X_OFFSET - 1, rowY + rowH - 2, 0x33_FFFFFF);
+                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + dividerX, rowY + rowH - 1, 0x66_FFFFFF);
+                    graphics.fill(guiLeft + 5, rowY, guiLeft + dividerX - 1, rowY + rowH - 2, 0x33_FFFFFF);
                 } else if (hovered) {
-                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + DIVIDER_X_OFFSET, rowY + rowH - 1, 0x33_FFFFFF);
+                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + dividerX, rowY + rowH - 1, 0x33_FFFFFF);
                 }
 
                 // 物品图标
@@ -226,7 +227,7 @@ public class AdminShopEditScreen extends BaseStoreScreen {
 
                 // 价格
                 String priceStr = ClientBalanceData.format(entry.getPrice());
-                int col2 = guiLeft + DIVIDER_X_OFFSET - 30;
+                int col2 = guiLeft + dividerX - 30;
                 graphics.drawString(font, "§6" + priceStr, col2 - font.width(priceStr), rowY + 2, 0xFFFFAA00);
 
                 // 售卖模式 + 库存状态
@@ -246,12 +247,12 @@ public class AdminShopEditScreen extends BaseStoreScreen {
         }
 
         int bottomSepY = guiTop + imageHeight - 32;
-        graphics.fill(guiLeft + 4, bottomSepY, guiLeft + DIVIDER_X_OFFSET, bottomSepY + 1, 0xFF_4A4A6A);
+        graphics.fill(guiLeft + 4, bottomSepY, guiLeft + dividerX, bottomSepY + 1, 0xFF_4A4A6A);
 
         String pageStr = Component.translatable("my_shop_panel.status.page", page + 1, getTotalPages()).getString();
         drawCenteredInMain(graphics, pageStr, guiTop + imageHeight - 23, 0xFFAAAAAA);
 
-        int sX = guiLeft + DIVIDER_X_OFFSET;
+        int sX = guiLeft + dividerX;
 
         graphics.drawString(font, Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format(), sX + 5, guiTop + 8, 0xFFFFFFFF);
 
@@ -261,7 +262,7 @@ public class AdminShopEditScreen extends BaseStoreScreen {
         graphics.drawString(font, Component.translatable("my_shop_panel.admin.toggle_mode").getString(), sX + 5, guiTop + 105, 0xFF888888);
         graphics.drawString(font, Component.translatable("my_shop_panel.admin.toggle_stock").getString(), sX + 5, guiTop + 131, 0xFF888888);
 
-        graphics.fill(guiLeft + DIVIDER_X_OFFSET, guiTop + 4, guiLeft + DIVIDER_X_OFFSET + 1,
+        graphics.fill(guiLeft + dividerX, guiTop + 4, guiLeft + dividerX + 1,
                 guiTop + imageHeight - 4, 0xFF_4A4A6A);
     }
 
@@ -275,7 +276,7 @@ public class AdminShopEditScreen extends BaseStoreScreen {
 
             for (int i = startIdx; i < endIdx; i++) {
                 int rowY = listTop + (i - startIdx) * rowH;
-                if (mouseX >= guiLeft + 4 && mouseX <= guiLeft + DIVIDER_X_OFFSET
+                if (mouseX >= guiLeft + 4 && mouseX <= guiLeft + dividerX
                         && mouseY >= rowY - 1 && mouseY <= rowY + rowH - 1) {
                     AdminShopEntry entry = displayEntries.get(i);
                     selectedEntryId = entry.getEntryId();
@@ -306,7 +307,7 @@ public class AdminShopEditScreen extends BaseStoreScreen {
     }
 
     private void drawCenteredInMain(GuiGraphics graphics, String text, int y, int color) {
-        int mainWidth = DIVIDER_X_OFFSET - 4;
+        int mainWidth = dividerX - 4;
         int x = guiLeft + mainWidth / 2 - font.width(text) / 2;
         graphics.drawString(font, text, x, y, color);
     }
