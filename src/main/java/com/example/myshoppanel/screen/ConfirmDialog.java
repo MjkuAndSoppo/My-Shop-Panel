@@ -1,6 +1,5 @@
 package com.example.myshoppanel.screen;
 
-import com.example.myshoppanel.economy.ClientBalanceData;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
@@ -29,6 +28,15 @@ public class ConfirmDialog extends BaseStoreScreen {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
             onCancel.run();
+            if (minecraft != null) minecraft.setScreen(new PlayerMarketScreen());
+            return true;
+        }
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_SPACE) {
+            try {
+                onConfirm.run();
+            } catch (Exception e) {
+                com.mojang.logging.LogUtils.getLogger().error("[MyShopPanel] 确认交易异常", e);
+            }
             if (minecraft != null) minecraft.setScreen(new PlayerMarketScreen());
             return true;
         }
@@ -74,8 +82,7 @@ public class ConfirmDialog extends BaseStoreScreen {
         drawCenteredString(graphics, Component.translatable("my_shop_panel.title.confirm_dialog").getString(), guiTop + 10, 0xFFFFD700);
 
         // 右上角余额
-        String balanceText = Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format();
-        graphics.drawString(font, balanceText, guiLeft + imageWidth - font.width(balanceText) - 8, guiTop + 8, 0xFFFFFFFF);
+        drawBalance(graphics, guiLeft + imageWidth - 8, guiTop + 8);
 
         // 分隔线
         graphics.fill(guiLeft + 10, guiTop + 28, guiLeft + imageWidth - 10, guiTop + 29, 0xFF_4A4A6A);

@@ -13,6 +13,7 @@ import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.shop.AdminShopConfig;
 import com.example.myshoppanel.shop.DynamicSystemData;
 import com.example.myshoppanel.shop.DynamicSystemService;
+import com.example.myshoppanel.shop.QuoteGroupData;
 import com.example.myshoppanel.shop.ListingFeeCalculator;
 import com.example.myshoppanel.shop.MarketBlacklist;
 import com.example.myshoppanel.shop.RedundantWarehouseSavedData;
@@ -93,6 +94,7 @@ public class MyShopPanel
         MarketBlacklist.loadInstance();
         ListingFeeCalculator.load(configDir);
         DynamicSystemData.loadInstance(configDir);
+        QuoteGroupData.loadInstance(configDir);
         LOGGER.info("[MyShopPanel] Server starting - My Shop Panel is ready!");
     }
 

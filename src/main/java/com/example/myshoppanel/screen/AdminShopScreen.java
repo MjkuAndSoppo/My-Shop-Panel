@@ -5,12 +5,14 @@ import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.network.packet.C2S_ConfirmTransactionPacket;
 import com.example.myshoppanel.network.packet.C2S_RequestAdminShopDataPacket;
 import com.example.myshoppanel.shop.AdminShopEntry;
+import com.example.myshoppanel.shop.ShopUtils;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +28,7 @@ public class AdminShopScreen extends BaseStoreScreen {
     private int page = 0;
     private boolean firstInit = true;
     private int ROWS_PER_PAGE = 7;
+    private int selectedEntryIdx = -1;          // 选中的条目索引，用于空格快速购买
 
     public AdminShopScreen() {
         super(Component.translatable("my_shop_panel.title.admin_shop"), 340, 240);
@@ -156,7 +159,10 @@ public class AdminShopScreen extends BaseStoreScreen {
                 boolean isSoldOut = !entry.isInfiniteStock() && entry.getStock() <= 0;
                 boolean hovered = mouseX >= guiLeft + 4 && mouseX <= guiLeft + dividerX
                         && mouseY >= rowY - 1 && mouseY <= rowY + rowH - 1;
-                if (hovered && !isSoldOut) {
+                boolean isSelected = selectedEntryIdx == i;
+                if (isSelected && !isSoldOut) {
+                    graphics.fill(guiLeft + 4, rowY - 1, guiLeft + dividerX, rowY + rowH - 1, 0x44_FFFF00);
+                } else if (hovered && !isSoldOut) {
                     graphics.fill(guiLeft + 4, rowY - 1, guiLeft + dividerX, rowY + rowH - 1, 0x33_FFFFFF);
                 }
 
@@ -200,8 +206,7 @@ public class AdminShopScreen extends BaseStoreScreen {
 
         int sX = guiLeft + dividerX;
 
-        String balanceText = Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format();
-        graphics.drawString(font, balanceText, sX + 4, guiTop + 8, 0xFFFFFFFF);
+        drawBalanceLeft(graphics, sX + 4, guiTop + 8);
 
         graphics.fill(sX + 1, guiTop + 22, sX + SIDEBAR_WIDTH - 4, guiTop + 23, 0xFF_4A4A6A);
 
@@ -230,6 +235,7 @@ public class AdminShopScreen extends BaseStoreScreen {
             if (mouseX >= guiLeft + 4 && mouseX <= guiLeft + dividerX
                     && mouseY >= rowY - 1 && mouseY <= rowY + rowH - 1) {
                 AdminShopEntry entry = displayEntries.get(i);
+                selectedEntryIdx = i; // 记录选中条目
 
                 // 购买模式：左键打开购买弹窗
                 if (showBuying && button == 0) {
@@ -273,6 +279,58 @@ public class AdminShopScreen extends BaseStoreScreen {
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_SPACE && selectedEntryIdx >= 0
+                && selectedEntryIdx < displayEntries.size()) {
+            AdminShopEntry entry = displayEntries.get(selectedEntryIdx);
+            if (showBuying) {
+                // 购买模式：快速购买1个
+                handleSpaceQuickBuy(entry);
+            } else {
+                // 出售模式：快速买回1个（1.3倍价格）
+                handleSpaceQuickBuyback(entry);
+            }
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    /** 空格购买模式 — 快速购买1个，无弹窗 */
+    private void handleSpaceQuickBuy(AdminShopEntry entry) {
+        if (minecraft == null || minecraft.player == null) return;
+        if (!entry.isInfiniteStock() && entry.getStock() <= 0) {
+            minecraft.player.displayClientMessage(
+                    Component.literal("§c[MyShopPanel] 该物品已售空！"), false);
+            return;
+        }
+        double cost = entry.getPrice();
+        if (ClientBalanceData.balance < cost) {
+            minecraft.player.displayClientMessage(
+                    Component.literal("§c[MyShopPanel] 余额不足，需要 " + ShopUtils.fmt(cost)
+                            + " MSPP，当前余额: " + ClientBalanceData.format()), false);
+            return;
+        }
+        NetworkHandler.sendToServer(new C2S_ConfirmTransactionPacket(
+                C2S_ConfirmTransactionPacket.TransactionType.ADMIN_BUY,
+                null, entry.getPrice(), 1, entry.getEntryId()));
+    }
+
+    /** 空格出售模式 — 快速买回1个（1.3倍），无弹窗 */
+    private void handleSpaceQuickBuyback(AdminShopEntry entry) {
+        if (minecraft == null || minecraft.player == null) return;
+        double buybackPrice = Math.ceil(entry.getPrice() * 1.3 * 100) / 100;
+        if (ClientBalanceData.balance < buybackPrice) {
+            minecraft.player.displayClientMessage(
+                    Component.literal("§c[MyShopPanel] 余额不足，需要 " + ShopUtils.fmt(buybackPrice)
+                            + " MSPP，当前余额: " + ClientBalanceData.format()), false);
+            return;
+        }
+        NetworkHandler.sendToServer(new C2S_ConfirmTransactionPacket(
+                C2S_ConfirmTransactionPacket.TransactionType.ADMIN_BUYBACK,
+                null, buybackPrice, 1, entry.getEntryId()));
     }
 
     private void handleClose() {

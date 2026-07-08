@@ -32,6 +32,7 @@ public class ListingFeeCalculator {
     private static final String FILE_NAME = "listing_fee.json";
 
     // ===== 可配置参数 =====
+    private static boolean feeEnabled = true;          // 手续费总开关
     private static double feeRate = 0.1;              // 基础手续费率
     private static double maxMarkupPenalty = 2.0;     // 涨价惩罚上限倍数
     private static double minBulkDiscount = 0.5;       // 批量折扣下限倍数
@@ -44,15 +45,16 @@ public class ListingFeeCalculator {
         configPath = configDir.resolve(FILE_NAME);
         if (Files.exists(configPath)) {
             try (Reader reader = Files.newBufferedReader(configPath)) {
-                Map<String, Double> cfg = GSON.fromJson(reader, new TypeToken<Map<String, Double>>() {}.getType());
+                Map<String, Object> cfg = GSON.fromJson(reader, new TypeToken<Map<String, Object>>() {}.getType());
                 if (cfg != null) {
-                    if (cfg.containsKey("feeRate")) feeRate = cfg.get("feeRate");
-                    if (cfg.containsKey("maxMarkupPenalty")) maxMarkupPenalty = cfg.get("maxMarkupPenalty");
-                    if (cfg.containsKey("minBulkDiscount")) minBulkDiscount = cfg.get("minBulkDiscount");
-                    if (cfg.containsKey("bulkDiscountPerItem")) bulkDiscountPerItem = cfg.get("bulkDiscountPerItem");
+                    if (cfg.get("feeEnabled") instanceof Boolean) feeEnabled = (Boolean) cfg.get("feeEnabled");
+                    if (cfg.containsKey("feeRate")) feeRate = toDouble(cfg.get("feeRate"));
+                    if (cfg.containsKey("maxMarkupPenalty")) maxMarkupPenalty = toDouble(cfg.get("maxMarkupPenalty"));
+                    if (cfg.containsKey("minBulkDiscount")) minBulkDiscount = toDouble(cfg.get("minBulkDiscount"));
+                    if (cfg.containsKey("bulkDiscountPerItem")) bulkDiscountPerItem = toDouble(cfg.get("bulkDiscountPerItem"));
                 }
-                LOGGER.info("[MyShopPanel] 手续费配置已加载: rate={}, markupPenalty={}, bulkDiscount={}, perItem={}",
-                        feeRate, maxMarkupPenalty, minBulkDiscount, bulkDiscountPerItem);
+                LOGGER.info("[MyShopPanel] 手续费配置已加载: enabled={}, rate={}, markupPenalty={}, bulkDiscount={}, perItem={}",
+                        feeEnabled, feeRate, maxMarkupPenalty, minBulkDiscount, bulkDiscountPerItem);
             } catch (Exception e) {
                 LOGGER.error("[MyShopPanel] 手续费配置加载失败，使用默认值", e);
             }
@@ -66,7 +68,8 @@ public class ListingFeeCalculator {
         if (configPath == null) return;
         try {
             Files.createDirectories(configPath.getParent());
-            Map<String, Double> cfg = new LinkedHashMap<>();
+            Map<String, Object> cfg = new LinkedHashMap<>();
+            cfg.put("feeEnabled", feeEnabled);
             cfg.put("feeRate", feeRate);
             cfg.put("maxMarkupPenalty", maxMarkupPenalty);
             cfg.put("minBulkDiscount", minBulkDiscount);
@@ -97,7 +100,7 @@ public class ListingFeeCalculator {
      */
     public static double calculateFee(double price, int quantity, ItemStack item) {
         ensureLoaded();
-        if (quantity <= 0) return 0;
+        if (!feeEnabled || quantity <= 0) return 0;
 
         double baseFee = price * quantity * feeRate;
 
@@ -126,13 +129,20 @@ public class ListingFeeCalculator {
 
     // ===== Getter（供指令查询） =====
 
+    public static boolean isFeeEnabled() { ensureLoaded(); return feeEnabled; }
     public static double getFeeRate() { ensureLoaded(); return feeRate; }
     public static double getMaxMarkupPenalty() { ensureLoaded(); return maxMarkupPenalty; }
     public static double getMinBulkDiscount() { ensureLoaded(); return minBulkDiscount; }
     public static double getBulkDiscountPerItem() { ensureLoaded(); return bulkDiscountPerItem; }
 
+    public static void setFeeEnabled(boolean v) { feeEnabled = v; }
     public static void setFeeRate(double v) { feeRate = v; }
     public static void setMaxMarkupPenalty(double v) { maxMarkupPenalty = v; }
     public static void setMinBulkDiscount(double v) { minBulkDiscount = v; }
     public static void setBulkDiscountPerItem(double v) { bulkDiscountPerItem = v; }
+
+    /** 安全转换 Number → double */
+    private static double toDouble(Object o) {
+        return o instanceof Number ? ((Number) o).doubleValue() : 0.0;
+    }
 }

@@ -1,5 +1,6 @@
 package com.example.myshoppanel.screen;
 
+import com.example.myshoppanel.economy.ClientBalanceData;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.gui.GuiGraphics;
@@ -20,6 +21,9 @@ public abstract class BaseStoreScreen extends Screen {
     protected static final int DEFAULT_HEIGHT = 200;
     protected static final int MAX_IMAGE_WIDTH = 600;
     protected static final int MAX_IMAGE_HEIGHT = 480;
+
+    private static final ResourceLocation MSPP_ICON = ResourceLocation.tryParse("my_shop_panel:textures/gui/mspp.png");
+    private static final int ICON_SIZE = 12;
 
     protected int guiLeft;
     protected int guiTop;
@@ -133,5 +137,39 @@ public abstract class BaseStoreScreen extends Screen {
             color = 0xFFFFFFFF;
         }
         graphics.drawString(font, component.getVisualOrderText(), x, y, color);
+    }
+
+    /**
+     * 绘制余额显示（MSPP图标 + 金额），右对齐到指定X坐标。
+     */
+    protected void drawBalance(GuiGraphics graphics, int rightX, int y) {
+        String text = ClientBalanceData.format();
+        int textWidth = font.width(text);
+        int totalWidth = ICON_SIZE + 2 + textWidth;
+
+        // 图标
+        RenderSystem.setShaderTexture(0, MSPP_ICON);
+        RenderSystem.enableBlend();
+        graphics.blit(MSPP_ICON, rightX - totalWidth, y, 0, 0, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+        RenderSystem.disableBlend();
+
+        // 文字
+        graphics.drawString(font, text, rightX - totalWidth + ICON_SIZE + 2, y + 2, 0xFFFFFFFF);
+    }
+
+    /**
+     * 绘制余额显示（MSPP图标 + 金额），左对齐到指定X坐标。
+     */
+    protected void drawBalanceLeft(GuiGraphics graphics, int x, int y) {
+        String text = ClientBalanceData.format();
+
+        // 图标
+        RenderSystem.setShaderTexture(0, MSPP_ICON);
+        RenderSystem.enableBlend();
+        graphics.blit(MSPP_ICON, x, y, 0, 0, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+        RenderSystem.disableBlend();
+
+        // 文字
+        graphics.drawString(font, text, x + ICON_SIZE + 2, y + 2, 0xFFFFFFFF);
     }
 }

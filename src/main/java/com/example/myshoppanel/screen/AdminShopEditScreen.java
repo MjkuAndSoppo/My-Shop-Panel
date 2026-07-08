@@ -254,7 +254,7 @@ public class AdminShopEditScreen extends BaseStoreScreen {
 
         int sX = guiLeft + dividerX;
 
-        graphics.drawString(font, Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format(), sX + 5, guiTop + 8, 0xFFFFFFFF);
+        drawBalanceLeft(graphics, sX + 5, guiTop + 8);
 
         graphics.fill(sX + 1, guiTop + 22, sX + SIDEBAR_WIDTH - 5, guiTop + 23, 0xFF_4A4A6A);
 

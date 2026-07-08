@@ -125,7 +125,8 @@ public class AdminTransactionDialog extends BaseStoreScreen {
             onClose.run();
             return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER
+                || keyCode == GLFW.GLFW_KEY_SPACE) {
             handleConfirm();
             return true;
         }
@@ -178,8 +179,7 @@ public class AdminTransactionDialog extends BaseStoreScreen {
         drawCenteredString(graphics, title, guiTop + 10, 0xFFFFD700);
 
         // 余额
-        String balanceText = Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format();
-        graphics.drawString(font, balanceText, guiLeft + imageWidth - font.width(balanceText) - 8, guiTop + 8, 0xFFFFFFFF);
+        drawBalance(graphics, guiLeft + imageWidth - 8, guiTop + 8);
 
         // 分隔线
         graphics.fill(guiLeft + 10, guiTop + 26, guiLeft + imageWidth - 10, guiTop + 27, 0xFF_4A4A6A);

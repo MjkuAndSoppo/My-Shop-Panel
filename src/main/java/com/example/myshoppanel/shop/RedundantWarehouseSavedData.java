@@ -24,6 +24,7 @@ public class RedundantWarehouseSavedData extends SavedData {
     private static final String DATA_NAME = "redundant_warehouse";
     public static final int ITEMS_PER_PAGE = 54;    // 6×9
     public static final long PAGE_CLEAR_TICKS = 360000L; // 5小时
+    public static final int WAREHOUSE_MAX_STACK = 640;   // 仓库每格堆叠上限
 
     public static class WarehousePage {
         public final List<WarehouseItem> items = new ArrayList<>();
@@ -103,50 +104,104 @@ public class RedundantWarehouseSavedData extends SavedData {
 
     // ========== 业务方法 ==========
 
-    /** 向玩家仓库添加物品（自动分页） */
+    /** 向玩家仓库添加物品（自动合并同类物品，每格上限640） */
     public void addItem(UUID playerUUID, ItemStack item) {
         if (item.isEmpty()) return;
         List<WarehousePage> pages = playerWarehouses.computeIfAbsent(playerUUID, k -> new ArrayList<>());
 
-        // 找最后一个未满的页，没有则新建
-        WarehousePage targetPage = null;
-        if (!pages.isEmpty()) {
-            WarehousePage last = pages.get(pages.size() - 1);
-            if (last.items.size() < ITEMS_PER_PAGE) {
-                targetPage = last;
+        int remaining = item.getCount();
+        ItemStack template = item.copy();
+
+        // 先尝试合并到已有的同类物品
+        for (WarehousePage page : pages) {
+            for (WarehouseItem wi : page.items) {
+                if (remaining <= 0) break;
+                ItemStack existing = wi.getItem();
+                if (ItemStack.isSameItemSameTags(existing, template)) {
+                    int space = WAREHOUSE_MAX_STACK - existing.getCount();
+                    if (space > 0) {
+                        int add = Math.min(remaining, space);
+                        existing.grow(add);
+                        wi.setItem(existing);
+                        remaining -= add;
+                    }
+                }
             }
-        }
-        if (targetPage == null) {
-            targetPage = new WarehousePage();
-            pages.add(targetPage);
+            if (remaining <= 0) break;
         }
 
-        targetPage.items.add(new WarehouseItem(item, System.currentTimeMillis()));
+        // 剩余数量创建新格子
+        while (remaining > 0) {
+            int batch = Math.min(remaining, WAREHOUSE_MAX_STACK);
+            ItemStack batchStack = template.copy();
+            batchStack.setCount(batch);
+
+            // 找最后一个未满的页
+            WarehousePage targetPage = null;
+            if (!pages.isEmpty()) {
+                WarehousePage last = pages.get(pages.size() - 1);
+                if (last.items.size() < ITEMS_PER_PAGE) {
+                    targetPage = last;
+                }
+            }
+            if (targetPage == null) {
+                targetPage = new WarehousePage();
+                pages.add(targetPage);
+            }
+
+            targetPage.items.add(new WarehouseItem(batchStack, System.currentTimeMillis()));
+            remaining -= batch;
+        }
+
         setDirty();
     }
 
     /** 从仓库中移除指定页中的物品（按索引），并重置该页倒计时 */
     public ItemStack removeItem(UUID playerUUID, int pageIndex, int itemIndex) {
+        return removePartialItem(playerUUID, pageIndex, itemIndex, Integer.MAX_VALUE);
+    }
+
+    /**
+     * 从仓库中部分取回物品。
+     * @param count 要取回的数量（通常为物品的 maxStackSize）
+     * @return 实际取回的物品，剩余数量留在仓库
+     */
+    public ItemStack removePartialItem(UUID playerUUID, int pageIndex, int itemIndex, int count) {
         List<WarehousePage> pages = playerWarehouses.get(playerUUID);
         if (pages == null || pageIndex < 0 || pageIndex >= pages.size()) return ItemStack.EMPTY;
 
         WarehousePage page = pages.get(pageIndex);
         if (itemIndex < 0 || itemIndex >= page.items.size()) return ItemStack.EMPTY;
 
-        WarehouseItem removed = page.items.remove(itemIndex);
+        WarehouseItem wi = page.items.get(itemIndex);
+        ItemStack stored = wi.getItem();
+        int toTake = Math.min(count, stored.getCount());
+        if (toTake <= 0) return ItemStack.EMPTY;
+
+        ItemStack taken = stored.copy();
+        taken.setCount(toTake);
+
+        int remaining = stored.getCount() - toTake;
+        if (remaining <= 0) {
+            // 全部取走，删除该格子
+            page.items.remove(itemIndex);
+            if (page.items.isEmpty()) {
+                pages.remove(pageIndex);
+                if (pages.isEmpty()) {
+                    playerWarehouses.remove(playerUUID);
+                }
+            }
+        } else {
+            // 部分取走，更新剩余数量
+            stored.setCount(remaining);
+            wi.setItem(stored);
+        }
+
         // 取回物品时重置该页倒计时
         page.remainingTicks = PAGE_CLEAR_TICKS;
 
-        // 若页为空则移除该页
-        if (page.items.isEmpty()) {
-            pages.remove(pageIndex);
-            if (pages.isEmpty()) {
-                playerWarehouses.remove(playerUUID);
-            }
-        }
-
         setDirty();
-        return removed.getItem();
+        return taken;
     }
 
     /** 导出指定玩家的所有物品页面（客户端展示用） */

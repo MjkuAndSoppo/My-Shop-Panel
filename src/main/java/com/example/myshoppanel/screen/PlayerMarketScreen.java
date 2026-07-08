@@ -7,6 +7,7 @@ import com.example.myshoppanel.network.packet.C2S_DelistItemPacket;
 import com.example.myshoppanel.network.packet.C2S_RequestMarketDataPacket;
 import com.example.myshoppanel.shop.DynamicSystemData;
 import com.example.myshoppanel.shop.PlayerMarketListing;
+import com.example.myshoppanel.shop.ShopUtils;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
@@ -16,6 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.lwjgl.glfw.GLFW;
 
 /**
  * 玩家市场界面。
@@ -235,8 +237,7 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         // 右边栏
         int sX = guiLeft + dividerX;
 
-        String balanceText = Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format();
-        graphics.drawString(font, balanceText, sX + 4, guiTop + 8, 0xFFFFFFFF);
+        drawBalanceLeft(graphics, sX + 4, guiTop + 8);
 
         graphics.fill(sX + 1, guiTop + 22, sX + SIDEBAR_WIDTH - 4, guiTop + 23, 0xFF_4A4A6A);
 
@@ -313,6 +314,53 @@ public class PlayerMarketScreen extends BaseStoreScreen {
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_SPACE) {
+            if (showMyListings || selectedListingId == null) {
+                return false; // 让文本框等消费
+            }
+            // 快速购买全部，无确认弹窗
+            handleQuickBuyAll();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    /** 空格快速购买全部 */
+    private void handleQuickBuyAll() {
+        if (selectedListingId == null || minecraft == null || minecraft.player == null) return;
+        PlayerMarketListing selected = findSelected();
+        if (selected == null) {
+            minecraft.player.displayClientMessage(
+                    Component.literal("§c[MyShopPanel] 该报价已失效，请重新选择。"), false);
+            return;
+        }
+        int qty = selected.getItem().getCount();
+        if (qty < 1) {
+            minecraft.player.displayClientMessage(
+                    Component.literal("§c[MyShopPanel] 该挂单已售空。"), false);
+            return;
+        }
+        double cost = selected.getPrice() * qty;
+        if (ClientBalanceData.balance < 0) {
+            minecraft.player.displayClientMessage(
+                    Component.literal("§c[MyShopPanel] 余额不足，当前余额: §6"
+                            + ClientBalanceData.format() + "§c，无法购买。"), false);
+            return;
+        }
+        if (ClientBalanceData.balance < cost) {
+            minecraft.player.displayClientMessage(
+                    Component.literal("§c[MyShopPanel] 余额不足，需要 " + ShopUtils.fmt(cost)
+                            + " MSPP，当前余额: " + ClientBalanceData.format()), false);
+            return;
+        }
+        NetworkHandler.sendToServer(new C2S_ConfirmTransactionPacket(
+                selectedListingId, qty));
+        selectedListingId = null;
+        NetworkHandler.sendToServer(new C2S_RequestMarketDataPacket());
     }
 
     private void handleBuy() {

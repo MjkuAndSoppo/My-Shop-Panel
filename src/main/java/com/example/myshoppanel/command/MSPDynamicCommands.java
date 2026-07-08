@@ -31,8 +31,14 @@ public class MSPDynamicCommands {
                                 .executes(MSPDynamicCommands::setInterval)))
                 .then(Commands.literal("reload")
                         .executes(MSPDynamicCommands::reload))
+                .then(Commands.literal("clearquotes")
+                        .executes(MSPDynamicCommands::clearQuotes))
                 .then(Commands.literal("fee")
                         .executes(MSPDynamicCommands::feeStatus)
+                        .then(Commands.literal("off")
+                                .executes(MSPDynamicCommands::feeOff))
+                        .then(Commands.literal("on")
+                                .executes(MSPDynamicCommands::feeOn))
                         .then(Commands.literal("rate")
                                 .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.01, 1.0))
                                         .executes(MSPDynamicCommands::setFeeRate)))
@@ -88,7 +94,9 @@ public class MSPDynamicCommands {
         send(ctx, "  机器人资金: §6" + ShopUtils.fmt(botBalance));
         send(ctx, "  最低留存: §6" + ShopUtils.fmt(cfg.getMinRetainedFunds()));
         send(ctx, "  当前挂单: §b" + botListings + "§f / " + cfg.getMaxListings());
-        send(ctx, "  上架物品: §e" + cfg.getListingItems().size() + "§f 种");
+        send(ctx, "  每轮最多上架: §e" + cfg.getMaxListingItemCount() + "§f 次尝试");
+        send(ctx, "  补货随机上限: §e" + cfg.getRestockMaxCount() + "§f 个");
+        send(ctx, "  报价组条目: §e" + QuoteGroupData.size() + "§f 种");
         send(ctx, "  手续费率: §e" + String.format("%.0f%%", ListingFeeCalculator.getFeeRate() * 100));
         send(ctx, "  涨价惩罚上限: §e" + String.format("%.1fx", ListingFeeCalculator.getMaxMarkupPenalty()));
         send(ctx, "  批量折扣下限: §e" + String.format("%.1fx", ListingFeeCalculator.getMinBulkDiscount()));
@@ -117,17 +125,40 @@ public class MSPDynamicCommands {
         MarketBlacklist.loadInstance();
         ListingFeeCalculator.load(src.getServer().getServerDirectory().toPath().resolve("config").resolve("my_shop_panel"));
         DynamicSystemData.loadInstance(src.getServer().getServerDirectory().toPath().resolve("config").resolve("my_shop_panel"));
+        QuoteGroupData.loadInstance(src.getServer().getServerDirectory().toPath().resolve("config").resolve("my_shop_panel"));
         send(ctx, "§a动态系统配置已重载。");
+        return 1;
+    }
+
+    private static int clearQuotes(CommandContext<CommandSourceStack> ctx) {
+        int count = QuoteGroupData.size();
+        QuoteGroupData.clear();
+        send(ctx, "§a报价组已清空，共删除 §6" + count + " §a条记录。");
         return 1;
     }
 
     private static int feeStatus(CommandContext<CommandSourceStack> ctx) {
         send(ctx, "§6========== 手续费配置 ==========");
+        send(ctx, "  状态: " + (ListingFeeCalculator.isFeeEnabled() ? "§a开启" : "§c关闭"));
         send(ctx, "  手续费率: §e" + String.format("%.0f%%", ListingFeeCalculator.getFeeRate() * 100));
         send(ctx, "  涨价惩罚上限: §e" + String.format("%.1fx", ListingFeeCalculator.getMaxMarkupPenalty()));
         send(ctx, "  批量折扣下限: §e" + String.format("%.1fx", ListingFeeCalculator.getMinBulkDiscount()));
         send(ctx, "  每件折扣: §e" + String.format("%.2f", ListingFeeCalculator.getBulkDiscountPerItem()));
         send(ctx, "§6==================================");
+        return 1;
+    }
+
+    private static int feeOff(CommandContext<CommandSourceStack> ctx) {
+        ListingFeeCalculator.setFeeEnabled(false);
+        ListingFeeCalculator.save();
+        send(ctx, "§e手续费已关闭，上架不再收取手续费。");
+        return 1;
+    }
+
+    private static int feeOn(CommandContext<CommandSourceStack> ctx) {
+        ListingFeeCalculator.setFeeEnabled(true);
+        ListingFeeCalculator.save();
+        send(ctx, "§a手续费已开启。");
         return 1;
     }
 

@@ -1,6 +1,5 @@
 package com.example.myshoppanel.screen;
 
-import com.example.myshoppanel.economy.ClientBalanceData;
 import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.network.packet.C2S_ListMarketItemPacket;
 import com.example.myshoppanel.shop.ListingFeeCalculator;
@@ -84,8 +83,7 @@ public class ListingSetupScreen extends BaseStoreScreen {
         drawCenteredString(graphics, Component.translatable("my_shop_panel.title.listing_setup").getString(), guiTop + 8, 0xFFFFD700);
 
         // 右上角余额
-        String balanceText = Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format();
-        graphics.drawString(font, balanceText, guiLeft + imageWidth - font.width(balanceText) - 8, guiTop + 8, 0xFFFFFFFF);
+        drawBalance(graphics, guiLeft + imageWidth - 8, guiTop + 8);
 
         // 实时手续费（余额下方）
         if (!selectedItem.isEmpty()) {
@@ -239,7 +237,8 @@ public class ListingSetupScreen extends BaseStoreScreen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER
+                || keyCode == GLFW.GLFW_KEY_SPACE) {
             handleConfirm();
             return true;
         }

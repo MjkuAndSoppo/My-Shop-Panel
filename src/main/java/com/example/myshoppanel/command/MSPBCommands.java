@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,8 +33,12 @@ public class MSPBCommands {
                                         .then(Commands.argument("quantity", IntegerArgumentType.integer(1, 64))
                                                 .executes(ctx -> { doUpItem(ctx, IntegerArgumentType.getInteger(ctx, "quantity")); return 1; }))))
                         .then(Commands.literal("dn")
-                                .then(Commands.argument("id", IntegerArgumentType.integer(100))
-                                        .executes(MSPBCommands::downItem)))
+                                .then(Commands.literal("all")
+                                        .executes(MSPBCommands::delistAll))
+                                .then(Commands.argument("from", IntegerArgumentType.integer(100))
+                                        .executes(MSPBCommands::delistSingle)
+                                        .then(Commands.argument("to", IntegerArgumentType.integer(100))
+                                                .executes(MSPBCommands::delistRange))))
         );
     }
 
@@ -64,37 +69,76 @@ public class MSPBCommands {
         ctx.getSource().sendSuccess(() -> Component.literal("§a[MSPB] 已上架 §6" + toList.getDisplayName().getString() + " x" + listQty + " §f标价 §6" + ShopUtils.fmt(price) + " §f报价单ID: §e#" + displayId), true);
     }
 
-    private static int downItem(CommandContext<CommandSourceStack> ctx) {
-        int displayId = IntegerArgumentType.getInteger(ctx, "id");
+    // ========== dn 子命令 ==========
+
+    /** 下架单个报价单：/MSPB dn <id> */
+    private static int delistSingle(CommandContext<CommandSourceStack> ctx) {
+        int displayId = IntegerArgumentType.getInteger(ctx, "from");
         PlayerMarketSavedData marketData = PlayerMarketSavedData.get(ctx.getSource().getLevel());
         Optional<PlayerMarketListing> found = marketData.removeListingByDisplayId(displayId);
         if (found.isEmpty()) {
             ctx.getSource().sendFailure(Component.literal("§c[MSPB] 报价单 #" + displayId + " 不存在。"));
             return 0;
         }
-        PlayerMarketListing listing = found.get();
-        ItemStack item = listing.getItem();
+        refundListing(ctx, found.get());
+        ctx.getSource().sendSuccess(() -> Component.literal("§a[MSPB] 报价单 #" + displayId + " §f(§6"
+                + found.get().getItem().getDisplayName().getString() + "§f) 已下架，物品已退回。"), true);
+        return 1;
+    }
 
-        // 查找卖家是否在线（考虑模拟离线测试）
+    /** 下架范围报价单：/MSPB dn <from> <to> */
+    private static int delistRange(CommandContext<CommandSourceStack> ctx) {
+        int from = IntegerArgumentType.getInteger(ctx, "from");
+        int to = IntegerArgumentType.getInteger(ctx, "to");
+        if (from > to) {
+            int tmp = from; from = to; to = tmp;
+        }
+        PlayerMarketSavedData marketData = PlayerMarketSavedData.get(ctx.getSource().getLevel());
+        List<PlayerMarketListing> removed = marketData.removeListingsByDisplayIdRange(from, to);
+        if (removed.isEmpty()) {
+            ctx.getSource().sendFailure(Component.literal("§c[MSPB] 范围 #" + from + "~#" + to + " 内没有报价单。"));
+            return 0;
+        }
+        for (PlayerMarketListing listing : removed) {
+            refundListing(ctx, listing);
+        }
+        final int fFrom = from, fTo = to;
+        ctx.getSource().sendSuccess(() -> Component.literal("§a[MSPB] 已下架 #" + fFrom + "~#" + fTo + " 范围内的 " + removed.size() + " 个报价单，物品已退回。"), true);
+        return removed.size();
+    }
+
+    /** 下架所有报价单：/MSPB dn all */
+    private static int delistAll(CommandContext<CommandSourceStack> ctx) {
+        PlayerMarketSavedData marketData = PlayerMarketSavedData.get(ctx.getSource().getLevel());
+        List<PlayerMarketListing> removed = marketData.removeAllListings();
+        if (removed.isEmpty()) {
+            ctx.getSource().sendFailure(Component.literal("§c[MSPB] 当前没有任何报价单。"));
+            return 0;
+        }
+        for (PlayerMarketListing listing : removed) {
+            refundListing(ctx, listing);
+        }
+        final int count = removed.size();
+        ctx.getSource().sendSuccess(() -> Component.literal("§a[MSPB] 已下架全部 " + count + " 个报价单，物品已退回。"), true);
+        return count;
+    }
+
+    /** 退款：在线退回背包/掉落，离线放入冗余仓库 */
+    private static void refundListing(CommandContext<CommandSourceStack> ctx, PlayerMarketListing listing) {
+        ItemStack item = listing.getItem();
         ServerPlayer seller = ctx.getSource().getLevel().getServer()
                 .getPlayerList().getPlayer(listing.getSellerUUID());
         boolean simulatedOffline = SimulateOfflineData.isSimulatedOffline(listing.getSellerUUID());
         if (seller != null && !simulatedOffline) {
-            // 在线：退回背包或掉落
             if (!seller.getInventory().add(item)) {
                 seller.drop(item, false);
             }
             seller.sendSystemMessage(Component.literal(
-                    "§a[MSPB] 你的报价单 #" + displayId + " 已被管理员下架，物品已退回背包。"));
+                    "§a[MSPB] 你的报价单 #" + listing.getDisplayId() + " 已被管理员下架，物品已退回背包。"));
         } else {
-            // 离线：进入冗余仓库
             RedundantWarehouseSavedData warehouse =
                     RedundantWarehouseSavedData.get(ctx.getSource().getLevel());
             warehouse.addItem(listing.getSellerUUID(), item);
         }
-
-        ctx.getSource().sendSuccess(() -> Component.literal("§a[MSPB] 报价单 #" + displayId + " §f(§6"
-                + listing.getItem().getDisplayName().getString() + "§f) 已下架，物品已退回。"), true);
-        return 1;
     }
 }

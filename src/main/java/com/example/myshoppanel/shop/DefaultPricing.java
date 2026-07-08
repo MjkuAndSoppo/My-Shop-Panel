@@ -297,4 +297,10 @@ public class DefaultPricing {
 
         return bestPrice;
     }
+
+    /** 获取全部内置定价条目：注册名 → 价格。用于动态系统构建加权随机池。 */
+    public static Map<String, Long> getAllItemPrices() {
+        init();
+        return new LinkedHashMap<>(ITEM_PRICES);
+    }
 }

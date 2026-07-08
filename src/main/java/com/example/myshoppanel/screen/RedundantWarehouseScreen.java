@@ -1,6 +1,5 @@
 package com.example.myshoppanel.screen;
 
-import com.example.myshoppanel.economy.ClientBalanceData;
 import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.network.packet.C2S_RequestWarehouseDataPacket;
 import com.example.myshoppanel.network.packet.C2S_RetrieveWarehouseItemsPacket;
@@ -128,9 +127,7 @@ public class RedundantWarehouseScreen extends BaseStoreScreen {
         drawCenteredString(graphics, Component.translatable("my_shop_panel.title.warehouse").getString(), guiTop + 6, 0xFFFF5555);
 
         // 余额
-        String balanceText = Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format();
-        graphics.drawString(font, balanceText, guiLeft + imageWidth - font.width(balanceText) - 8,
-                guiTop + 6, 0xFFFFFFFF);
+        drawBalance(graphics, guiLeft + imageWidth - 8, guiTop + 6);
 
         // 分隔线
         int sepY = guiTop + 22;

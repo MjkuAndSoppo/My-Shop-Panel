@@ -1,6 +1,5 @@
 package com.example.myshoppanel.screen;
 
-import com.example.myshoppanel.economy.ClientBalanceData;
 import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.network.packet.C2S_AdminShopEditPacket;
 import com.example.myshoppanel.shop.ShopUtils;
@@ -77,8 +76,7 @@ public class AdminShopListingScreen extends BaseStoreScreen {
 
         drawCenteredString(graphics, Component.translatable("my_shop_panel.title.admin_listing").getString(), guiTop + 8, 0xFFFFD700);
 
-        String balanceText = Component.translatable("my_shop_panel.label.balance").getString() + ClientBalanceData.format();
-        graphics.drawString(font, balanceText, guiLeft + imageWidth - font.width(balanceText) - 8, guiTop + 8, 0xFFFFFFFF);
+        drawBalance(graphics, guiLeft + imageWidth - 8, guiTop + 8);
 
         if (!selectedItem.isEmpty()) {
             graphics.renderItem(selectedItem, guiLeft + 20, guiTop + 28);

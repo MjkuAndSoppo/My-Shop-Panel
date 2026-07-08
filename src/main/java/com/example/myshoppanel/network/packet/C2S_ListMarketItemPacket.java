@@ -5,6 +5,7 @@ import com.example.myshoppanel.shop.DynamicSystemService;
 import com.example.myshoppanel.shop.ListingFeeCalculator;
 import com.example.myshoppanel.shop.MarketBlacklist;
 import com.example.myshoppanel.shop.PlayerMarketSavedData;
+import com.example.myshoppanel.shop.QuoteGroupData;
 import com.example.myshoppanel.shop.ShopUtils;
 import com.example.myshoppanel.shop.TransactionService;
 import net.minecraft.nbt.CompoundTag;
@@ -13,6 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.function.Supplier;
 
@@ -103,6 +105,11 @@ public class C2S_ListMarketItemPacket {
 
             PlayerMarketSavedData marketData = PlayerMarketSavedData.get(player.serverLevel());
             TransactionService.commitMarketList(player, toList, msg.price, marketData);
+
+            // 记录到报价组（行情）
+            String regName = ForgeRegistries.ITEMS.getKey(toList.getItem()).toString();
+            QuoteGroupData.recordListing(regName, msg.price, actualQty);
+
             String feeMsg = fee > 0 ? " §7(手续费: §6" + ShopUtils.fmt(fee) + "§7)" : "";
             player.sendSystemMessage(Component.literal(
                     "§a[MyShopPanel] 上架成功！§f" + toList.getDisplayName().getString()

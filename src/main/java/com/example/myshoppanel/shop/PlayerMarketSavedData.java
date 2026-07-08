@@ -106,4 +106,26 @@ public class PlayerMarketSavedData extends SavedData {
                 .filter(l -> l.getSellerUUID().equals(playerUUID))
                 .collect(Collectors.toList());
     }
+
+    /** 按展示ID范围移除挂单，返回被移除的挂单列表 */
+    public List<PlayerMarketListing> removeListingsByDisplayIdRange(int from, int to) {
+        List<PlayerMarketListing> removed = new ArrayList<>();
+        listings.removeIf(l -> {
+            if (l.getDisplayId() >= from && l.getDisplayId() <= to) {
+                removed.add(l);
+                return true;
+            }
+            return false;
+        });
+        if (!removed.isEmpty()) setDirty();
+        return removed;
+    }
+
+    /** 移除所有挂单，返回被移除的挂单列表 */
+    public List<PlayerMarketListing> removeAllListings() {
+        List<PlayerMarketListing> removed = new ArrayList<>(listings);
+        listings.clear();
+        if (!removed.isEmpty()) setDirty();
+        return removed;
+    }
 }
