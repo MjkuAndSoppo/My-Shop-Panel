@@ -4,7 +4,7 @@
 [![Forge](https://img.shields.io/badge/Forge-47.x-red)](https://files.minecraftforge.net/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
-轻量级 Minecraft Forge 经济模组。独立货币 + 玩家自由市场 + OP 官方商店，统一通过 **报价终端** 操作。
+轻量级 Minecraft Forge 经济模组。独立货币 + 玩家自由市场 + 动态系统 + OP 官方商店，统一通过 **报价终端** 操作。
 
 ---
 
@@ -13,12 +13,16 @@
 - **独立 GUI 系统** — 完全脱离原版容器界面，自绘实现，与任何模组零冲突
 - **MSPP 点数** — 独立货币体系，支持负数余额（透支/欠款）
 - **玩家自由市场** — 上架/浏览/购买/撤单，完整自由交易闭环
+- **动态系统** — 智能机器人自动巡检，模拟真实市场供需
 - **世界商店** — OP 可配置买入/卖出双模式官方商店，支持有限/无限库存
 - **报价终端** — 所有功能的唯一入口物品，右键/潜行/左键/I 键四种交互
-- **冗余仓库** — 离线玩家下架物品安全寄存，上线后取回
+- **冗余仓库** — 离线玩家下架物品安全寄存，上线后取回；同类物品每格堆叠 640
 - **三步提交** — Prepare → Confirm → Commit，取消即回滚，超时/掉线零风险
 - **透支警告** — 负余额操作前高亮弹窗确认
-- **黑名单机制** — 可配置禁止上架的物品
+- **黑名单机制** — 可配置禁止上架的物品，动态系统自动跳过黑名单物品
+- **报价组系统** — 记录玩家上架价格，为动态系统提供定价参考
+- **上架手续费** — 可配置费率，支持开关，防止垃圾挂单
+- **MSPP 余额图标** — 所有界面右上角显示 MSPP 图标 + 余额
 - **ProjectE 联动** — 自动读取物品 EMC 值作为默认定价
 
 ---
@@ -58,8 +62,32 @@
 ```
 上架：背包网格选品 → 输入标价 & 数量 → 确认上架（物品从背包扣除）
 购买：浏览全部挂单 → 点击他人挂单 → 弹窗确认（余额不足高亮透支警告）
+      数量循环：0 按 -1 → 最大值，最大值按 +1 → 1
 撤单：切换到「我的挂单」→ 点击撤下（物品退回背包/掉落地面）
 ```
+
+### 动态系统（智能机器人）
+
+机器人自动巡检玩家市场，模拟真实经济活动：
+
+```
+余额 > minRetainedFunds
+  → 随机 0~maxListingItemCount 次尝试
+    → 掷骰子 1~10：
+      ├─ >5 → 补货（随机已有挂单加量，余额 -500）
+      ├─ <5 → 新上架（报价组加权随机，余额 -minRetainedFunds）
+      └─ =5 → 结束本轮（余额 -100）
+```
+
+资金来源：
+- 玩家购买世界商店 → 100% 盈利注入
+- 玩家买回世界商店物品 → 25% 差价注入
+- 玩家上架手续费 → 100% 注入
+
+特性：
+- 重复物品自动叠加到已有报价
+- 自动跳过黑名单物品
+- 报价组加权随机（低价物品概率更高）
 
 ### 世界商店
 
@@ -92,7 +120,26 @@
 
 ```
 /MSPB up <价格> [数量]     上架手中物品（小数价格）
-/MSPB dn <展示ID>          下架报价（离线则进冗余仓库）
+/MSPB dn <展示ID>          下架单个报价（离线则进冗余仓库）
+/MSPB dn <起始ID> <结束ID>  下架范围内报价（自动纠正顺序）
+/MSPB dn all               下架全部报价
+```
+
+### `/mspdynamic` — 动态系统管理（需 OP）
+
+```
+/mspdynamic on              开启动态系统
+/mspdynamic off             关闭动态系统
+/mspdynamic status          查看状态（资金、挂单数、报价组等）
+/mspdynamic interval <ticks> 设置巡检间隔（20~72000 tick）
+/mspdynamic reload          重载所有配置
+/mspdynamic clearquotes     清空报价组
+/mspdynamic fee             查看手续费配置
+/mspdynamic fee on          开启手续费
+/mspdynamic fee off         关闭手续费
+/mspdynamic fee rate <0.01~1.0>  设置手续费率
+/mspdynamic fee markup <1.0~10.0> 设置涨价惩罚上限
+/mspdynamic fee bulk <0.1~1.0>    设置批量折扣下限
 ```
 
 ### `/MSPEdit` — 编辑模式（需 OP）
@@ -124,8 +171,11 @@
 | 文件 | 位置 | 说明 |
 |------|------|------|
 | `msp_quote.toml` | `config/` | 世界商店条目（可编辑模式修改） |
-| `msp_blacklist.toml` | `config/` | 报价黑名单 |
+| `msp_blacklist.toml` | `config/` | 报价黑名单（动态系统自动跳过） |
 | `admin_shop_config.json` | `config/my_shop_panel/` | OP 商店条目定义 |
+| `msp_dynamic.json` | `config/my_shop_panel/` | 动态系统配置（开关/间隔/资金等） |
+| `quote_group.json` | `config/my_shop_panel/` | 报价组数据（加权平均价） |
+| `listing_fee.json` | `config/my_shop_panel/` | 上架手续费配置 |
 | `msp_points.dat` | `<世界>/data/` | 玩家 MSPP 余额 |
 | `player_market_data.dat` | `<世界>/data/` | 玩家市场挂单 |
 | `redundant_warehouse.dat` | `<世界>/data/` | 冗余仓库 |
@@ -139,7 +189,8 @@ net/my_shop_panel/
 ├── MyShopPanel.java              # 模组主类
 ├── command/
 │   ├── MSPPCommands.java         # /msp 指令
-│   ├── MSPBCommands.java         # /MSPB 指令
+│   ├── MSPBCommands.java         # /MSPB 指令（支持范围/全部下架）
+│   ├── MSPDynamicCommands.java   # /mspdynamic 指令（动态系统+手续费）
 │   ├── MSPEditCommands.java      # /MSPEdit 指令
 │   ├── MSPBlacklistCommands.java # /MSPBlacklist 指令
 │   └── MSPTestCommands.java      # /MSPtest 指令
@@ -157,9 +208,10 @@ net/my_shop_panel/
 │   ├── NetworkHandler.java        # SimpleChannel 总线
 │   └── packet/                    # 网络包（C2S/S2C）
 ├── screen/
-│   ├── BaseStoreScreen.java      # 所有界面的磨砂底基类
+│   ├── BaseStoreScreen.java      # 所有界面的磨砂底基类（含MSPP图标渲染）
 │   ├── MainMenuScreen.java       # 主菜单
 │   ├── PlayerMarketScreen.java   # 玩家市场
+│   ├── MarketBuyDialog.java      # 市场购买弹窗（数量循环）
 │   ├── ListingSetupScreen.java   # 上架物品
 │   ├── AdminShopScreen.java      # OP 管理
 │   ├── AdminShopEditScreen.java  # OP 编辑
@@ -170,11 +222,16 @@ net/my_shop_panel/
 └── shop/
     ├── PlayerMarketListing.java   # 挂单数据模型
     ├── PlayerMarketSavedData.java # 挂单持久化
+    ├── DynamicSystemData.java     # 动态系统配置
+    ├── DynamicSystemService.java  # 动态系统巡检服务
+    ├── QuoteGroupData.java        # 报价组数据管理
+    ├── ListingFeeCalculator.java  # 上架手续费计算
     ├── AdminShopEntry.java        # 商店条目模型
     ├── AdminShopConfig.java       # 商店配置 JSON
     ├── TransactionService.java    # 三步提交事务服务
+    ├── DefaultPricing.java        # 默认定价（含 ProjectE 联动）
     ├── RedundantWarehouseSavedData.java # 冗余仓库持久化
-    ├── WarehouseItem.java         # 仓储物品模型
+    ├── WarehouseItem.java         # 仓储物品模型（Count int序列化）
     ├── MarketBlacklist.java       # 黑名单管理
     ├── ShopLang.java              # 文本常量
     └── ShopUtils.java             # 工具方法
@@ -207,9 +264,10 @@ cd MyShopPanel
 ## 数据安全
 
 - 所有经济数据通过 `WorldSavedData` 持久化，每个存档独立存储
-- 冗余仓库确保离线玩家物品不丢失
+- 冗余仓库确保离线玩家物品不丢失，同类物品堆叠 640 上限
 - 三步提交机制防止网络波动导致数据不一致
 - 物品交付失败自动掉落地面，永不消失
+- 动态系统资金独立于玩家，自动平衡市场供需
 
 ---
 

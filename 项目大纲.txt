@@ -1,0 +1,141 @@
+================================================================================
+              My Shop Panel — 项目大纲 v1.2
+              Minecraft 1.20.1  Forge 47.x
+================================================================================
+
+一、项目概述
+──────────────────────────────────────────────────────────────
+
+  My Shop Panel 是一个轻量级 Minecraft Forge 经济模组。
+  提供独立货币体系、玩家自由市场、动态系统、OP 官方商店，
+  统一通过「报价终端」物品操作。
+
+  技术栈：Java 17 / Forge 47.x / ForgeGradle
+  架构：独立 GUI + WorldSavedData 持久化 + SimpleChannel 网络通信
+
+二、核心模块
+──────────────────────────────────────────────────────────────
+
+  1. 经济系统 (economy/)
+     ├── MSPP 点数（独立货币，支持负数余额）
+     ├── 客户端余额缓存
+     ├── 编辑模式状态
+     ├── 离线模拟
+     └── 上架手续费（可配置费率/开关/惩罚/折扣）
+
+  2. 报价终端 (item/)
+     ├── 终端物品（堆叠数=1）
+     ├── 四种交互：右键/潜行右键/左键玩家/I 键
+     ├── I 键绑定（可自定义）
+     └── 左键玩家事件
+
+  3. 玩家市场 (shop/ + screen/)
+     ├── 挂单数据模型 + 持久化
+     ├── 上架/浏览/购买/撤单 完整闭环
+     ├── 三步提交（Prepare→Confirm→Commit）
+     ├── 购买弹窗（数量循环、空格全买）
+     └── 确认弹窗（透支警告高亮）
+
+  4. 动态系统 (shop/)
+     ├── 智能机器人自动巡检
+     ├── 掷骰子机制（>5补货 <5新上架 =5结束）
+     ├── 报价组加权随机定价
+     ├── 重复物品自动叠加
+     ├── 黑名单自动跳过
+     └── 资金独立管理
+
+  5. 世界商店 (shop/ + screen/)
+     ├── 双模式：SELLING（玩家购买）/ BUYING（玩家出售）
+     ├── 玩家视角：购买/出售/买回
+     ├── 管理视角：新增/删除/调库存/切模式
+     └── 无限/有限库存
+
+  6. 冗余仓库 (shop/ + screen/)
+     ├── 离线玩家物品安全寄存
+     ├── 同类物品自动合并（每格上限 640）
+     ├── 按组取回（每次 maxStackSize 个）
+     ├── 分页管理（6×9=54 格/页）
+     └── 5 小时自动清理空页
+
+三、指令系统
+──────────────────────────────────────────────────────────────
+
+  /msp              — 点数管理（5 个子命令）
+  /MSPB             — 服务器报价管理（上架+范围/全部下架）
+  /mspdynamic       — 动态系统管理（17 个子命令，含手续费）
+  /MSPEdit          — 编辑模式开关
+  /MSPBlacklist     — 黑名单增删查
+  /MSPtest          — 测试工具
+
+四、网络通信
+──────────────────────────────────────────────────────────────
+
+  协议：Forge SimpleChannel
+  包数：C2S × 5 / S2C × 3
+  流程：客户端请求 → 服务端处理 → 推送更新 → 客户端刷新
+
+  关键包：
+    C2S_ConfirmTransactionPacket  — 确认购买
+    C2S_ListMarketItemPacket      — 上架物品
+    C2S_DelistItemPacket          — 下架物品
+    C2S_RetrieveWarehouseItemsPacket — 取回仓库物品
+    C2S_RequestMarketDataPacket   — 请求市场数据
+    S2C_MarketDataPacket          — 推送市场数据
+    S2C_WarehouseDataPacket       — 推送仓库数据
+    S2C_AdminShopDataPacket       — 推送商店数据
+
+五、数据持久化
+──────────────────────────────────────────────────────────────
+
+  全局配置（config/，所有存档共享）：
+    msp_quote.toml              世界商店条目
+    msp_blacklist.toml          报价黑名单
+    msp_dynamic.json            动态系统配置
+    quote_group.json            报价组数据
+    listing_fee.json            手续费配置
+    admin_shop_config.json      OP 商店配置
+
+  存档数据（<世界>/data/，每个存档独立）：
+    msp_points.dat              玩家 MSPP 余额
+    player_market_data.dat      玩家市场挂单
+    redundant_warehouse.dat     冗余仓库
+
+六、UI 系统
+──────────────────────────────────────────────────────────────
+
+  架构：BaseStoreScreen（磨砂底基类）→ 所有界面继承
+  特色：
+    · 完全脱离原版容器系统
+    · 磨砂半透明背景
+    · MSPP 图标 + 余额 右上角显示
+    · 自适应宽度（最大 600px）
+
+  界面列表：
+    MainMenuScreen             主菜单（3 入口）
+    PlayerMarketScreen          玩家市场（全部/我的挂单）
+    MarketBuyDialog             购买弹窗
+    ListingSetupScreen          上架物品
+    AdminShopScreen             OP 商店
+    AdminShopEditScreen         OP 编辑
+    AdminShopListingScreen      OP 条目列表
+    AdminTransactionDialog      交易弹窗
+    ConfirmDialog               通用确认弹窗
+    RedundantWarehouseScreen    冗余仓库
+
+七、联动支持
+──────────────────────────────────────────────────────────────
+
+  ProjectE — 自动读取 EMC 值作为默认定价
+  不硬依赖，未安装时默认标价 1 MSPP
+
+八、数据安全
+──────────────────────────────────────────────────────────────
+
+  · WorldSavedData 自动持久化
+  · 三步提交防网络波动
+  · 冗余仓库防离线丢失
+  · 物品交付失败自动掉落
+  · 动态系统资金独立
+  · NBT Count int 序列化（防 byte 溢出）
+
+================================================================================
