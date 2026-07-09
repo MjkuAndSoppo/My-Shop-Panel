@@ -26,8 +26,8 @@ public class TerminalEventHandler {
             event.setCanceled(true);
 
             player.sendSystemMessage(
-                    Component.literal("§e[MyShopPanel] §a向 §6" + targetPlayer.getName().getString() + " §a转账：")
-                            .append(Component.literal("§b/msp pay " + targetPlayer.getName().getString() + " <金额>"))
+                    Component.translatable("my_shop_panel.terminal.transfer_hint", targetPlayer.getName().getString())
+                            .append(Component.translatable("my_shop_panel.terminal.transfer_cmd", targetPlayer.getName().getString()))
             );
         }
     }

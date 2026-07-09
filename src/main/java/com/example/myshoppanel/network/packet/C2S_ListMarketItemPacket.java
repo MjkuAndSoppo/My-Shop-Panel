@@ -52,15 +52,15 @@ public class C2S_ListMarketItemPacket {
 
             // 空物品检查
             if (msg.item.isEmpty()) {
-                player.sendSystemMessage(Component.literal("§c[MyShopPanel] 无效的物品。"));
+                player.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.invalid_item"));
                 return;
             }
             if (msg.price <= 0) {
-                player.sendSystemMessage(Component.literal("§c[MyShopPanel] 价格必须大于0。"));
+                player.sendSystemMessage(Component.translatable("my_shop_panel.error.price_positive"));
                 return;
             }
             if (msg.quantity <= 0) {
-                player.sendSystemMessage(Component.literal("§c[MyShopPanel] 数量无效。"));
+                player.sendSystemMessage(Component.translatable("my_shop_panel.error.invalid_qty"));
                 return;
             }
             // 不可堆叠物品强制数量为1，同时校验数量不超过maxStackSize
@@ -72,7 +72,7 @@ public class C2S_ListMarketItemPacket {
                 actualQty = Math.min(msg.quantity, maxStack);
             }
             if (MarketBlacklist.isBlacklisted(msg.item)) {
-                player.sendSystemMessage(Component.literal("§c[MyShopPanel] 该物品不可上架。"));
+                player.sendSystemMessage(Component.translatable("my_shop_panel.error.blacklisted"));
                 return;
             }
             int found = 0;
@@ -83,7 +83,7 @@ public class C2S_ListMarketItemPacket {
                 }
             }
             if (found < actualQty) {
-                player.sendSystemMessage(Component.literal("§c[MyShopPanel] 背包中物品不足，请刷新重试。"));
+                player.sendSystemMessage(Component.translatable("my_shop_panel.error.items_low"));
                 return;
             }
             ItemStack toList = msg.item.copy();
@@ -94,8 +94,8 @@ public class C2S_ListMarketItemPacket {
             var points = MSPPointsSavedData.get(player.serverLevel());
             double bal = points.getPoints(player.getUUID());
             if (fee > 0 && bal < fee) {
-                player.sendSystemMessage(Component.literal("§c[MyShopPanel] 余额不足以支付手续费！需要 §6"
-                        + ShopUtils.fmt(fee) + "§c，当前余额: §6" + ShopUtils.fmt(bal)));
+                player.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.insufficient_fee",
+                        ShopUtils.fmt(fee), ShopUtils.fmt(bal)));
                 return;
             }
             if (fee > 0) {
@@ -111,11 +111,12 @@ public class C2S_ListMarketItemPacket {
             QuoteGroupData.recordListing(regName, msg.price, actualQty);
 
             String feeMsg = fee > 0 ? " §7(手续费: §6" + ShopUtils.fmt(fee) + "§7)" : "";
-            player.sendSystemMessage(Component.literal(
-                    "§a[MyShopPanel] 上架成功！§f" + toList.getDisplayName().getString()
-                            + " x" + toList.getCount()
-                            + " §f标价 §6" + ShopUtils.fmt(msg.price)
-                            + feeMsg));
+            player.sendSystemMessage(Component.translatable(
+                    "my_shop_panel.tx.msg.list_success_detail",
+                    toList.getDisplayName().getString(),
+                    toList.getCount(),
+                    ShopUtils.fmt(msg.price),
+                    feeMsg));
         });
         ctx.get().setPacketHandled(true);
     }

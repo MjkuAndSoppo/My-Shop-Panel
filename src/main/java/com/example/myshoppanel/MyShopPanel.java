@@ -4,13 +4,18 @@ import com.example.myshoppanel.command.MSPBlacklistCommands;
 import com.example.myshoppanel.command.MSPBCommands;
 import com.example.myshoppanel.command.MSPDynamicCommands;
 import com.example.myshoppanel.command.MSPEditCommands;
+import com.example.myshoppanel.command.MSPMainCommands;
 import com.example.myshoppanel.command.MSPPCommands;
 import com.example.myshoppanel.command.MSPTestCommands;
+import com.example.myshoppanel.compat.jei.JEIIntegration;
+import com.example.myshoppanel.compat.ftbquests.FTBQuestsIntegration;
 import com.example.myshoppanel.item.QuotationTerminalItem;
 import com.example.myshoppanel.item.TerminalEventHandler;
 import com.example.myshoppanel.item.TerminalKeyHandler;
 import com.example.myshoppanel.network.NetworkHandler;
+import com.example.myshoppanel.shop.MainMenuConfig;
 import com.example.myshoppanel.shop.AdminShopConfig;
+import com.example.myshoppanel.shop.DynamicCategoryConfig;
 import com.example.myshoppanel.shop.DynamicSystemData;
 import com.example.myshoppanel.shop.DynamicSystemService;
 import com.example.myshoppanel.shop.QuoteGroupData;
@@ -83,6 +88,12 @@ public class MyShopPanel
     private void commonSetup(final FMLCommonSetupEvent event)
     {
         NetworkHandler.register();
+        MainMenuConfig.load();
+        // 发送 InterModComms 给 JEI 和 FTB Quests（可选集成）
+        event.enqueueWork(() -> {
+            JEIIntegration.sendIMC();
+            FTBQuestsIntegration.sendIMC();
+        });
         LOGGER.info("[MyShopPanel] Network registered.");
     }
 
@@ -94,6 +105,7 @@ public class MyShopPanel
         MarketBlacklist.loadInstance();
         ListingFeeCalculator.load(configDir);
         DynamicSystemData.loadInstance(configDir);
+        DynamicCategoryConfig.loadInstance(configDir);
         QuoteGroupData.loadInstance(configDir);
         LOGGER.info("[MyShopPanel] Server starting - My Shop Panel is ready!");
     }
@@ -106,6 +118,7 @@ public class MyShopPanel
         MSPBlacklistCommands.register(event.getDispatcher());
         MSPTestCommands.register(event.getDispatcher());
         MSPDynamicCommands.register(event.getDispatcher());
+        MSPMainCommands.register(event.getDispatcher());
         LOGGER.info("[MyShopPanel] All commands registered.");
     }
 
@@ -145,9 +158,8 @@ public class MyShopPanel
                             RedundantWarehouseSavedData wh = RedundantWarehouseSavedData.get(overworld);
                             if (wh.hasItems(entry.getKey())) {
                                 int count = wh.getItemCount(entry.getKey());
-                                sp.sendSystemMessage(Component.literal(
-                                        "§c§l⚠ [MyShopPanel] 你的冗余仓库中有 §6" + count
-                                                + " §c§l件物品等待取回！请打开报价终端 → 冗余仓库 查看。"));
+                                sp.sendSystemMessage(Component.translatable(
+                                        "my_shop_panel.warehouse.alert", count));
                             }
                         }
                     }

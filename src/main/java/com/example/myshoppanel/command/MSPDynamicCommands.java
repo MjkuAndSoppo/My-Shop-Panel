@@ -48,35 +48,50 @@ public class MSPDynamicCommands {
                         .then(Commands.literal("bulk")
                                 .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.1, 1.0))
                                         .executes(MSPDynamicCommands::setBulk))))
+                .then(Commands.literal("category")
+                        .executes(MSPDynamicCommands::categoryList)
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("tabId", StringArgumentType.word())
+                                        .then(Commands.literal("weight")
+                                                .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.1, 10.0))
+                                                        .executes(MSPDynamicCommands::categorySetWeight)))
+                                        .then(Commands.literal("cost")
+                                                .then(Commands.argument("restock", IntegerArgumentType.integer(1, 1000000))
+                                                        .then(Commands.argument("listing", IntegerArgumentType.integer(1, 10000000))
+                                                                .executes(MSPDynamicCommands::categorySetCost))))
+                                        .then(Commands.literal("off")
+                                                .executes(MSPDynamicCommands::categoryOff))
+                                        .then(Commands.literal("on")
+                                                .executes(MSPDynamicCommands::categoryOn)))))
         );
     }
 
     private static int turnOn(CommandContext<CommandSourceStack> ctx) {
         DynamicSystemData cfg = DynamicSystemData.getInstance();
         if (cfg == null) {
-            send(ctx, "§c动态系统未初始化。");
+            send(ctx, "my_shop_panel.cmd.dynamic.not_init");
             return 0;
         }
         cfg.setEnabled(true);
-        send(ctx, "§a动态系统已开启。");
+        send(ctx, "my_shop_panel.cmd.dynamic.enabled");
         return 1;
     }
 
     private static int turnOff(CommandContext<CommandSourceStack> ctx) {
         DynamicSystemData cfg = DynamicSystemData.getInstance();
         if (cfg == null) {
-            send(ctx, "§c动态系统未初始化。");
+            send(ctx, "my_shop_panel.cmd.dynamic.not_init");
             return 0;
         }
         cfg.setEnabled(false);
-        send(ctx, "§e动态系统已关闭。");
+        send(ctx, "my_shop_panel.cmd.dynamic.disabled");
         return 1;
     }
 
     private static int status(CommandContext<CommandSourceStack> ctx) {
         DynamicSystemData cfg = DynamicSystemData.getInstance();
         if (cfg == null) {
-            send(ctx, "§c动态系统未初始化。");
+            send(ctx, "my_shop_panel.cmd.dynamic.not_init");
             return 0;
         }
         CommandSourceStack src = ctx.getSource();
@@ -88,19 +103,20 @@ public class MSPDynamicCommands {
                 .filter(l -> l.getSellerUUID().equals(DynamicSystemData.BOT_UUID))
                 .count();
 
-        send(ctx, "§6========== 动态系统状态 ==========");
-        send(ctx, "  状态: " + (cfg.isEnabled() ? "§a运行中" : "§c已关闭"));
-        send(ctx, "  巡检间隔: §e" + cfg.getTickInterval() + "§f tick (" + (cfg.getTickInterval() / 20) + "秒)");
-        send(ctx, "  机器人资金: §6" + ShopUtils.fmt(botBalance));
-        send(ctx, "  最低留存: §6" + ShopUtils.fmt(cfg.getMinRetainedFunds()));
-        send(ctx, "  当前挂单: §b" + botListings + "§f / " + cfg.getMaxListings());
-        send(ctx, "  每轮最多上架: §e" + cfg.getMaxListingItemCount() + "§f 次尝试");
-        send(ctx, "  补货随机上限: §e" + cfg.getRestockMaxCount() + "§f 个");
-        send(ctx, "  报价组条目: §e" + QuoteGroupData.size() + "§f 种");
-        send(ctx, "  手续费率: §e" + String.format("%.0f%%", ListingFeeCalculator.getFeeRate() * 100));
-        send(ctx, "  涨价惩罚上限: §e" + String.format("%.1fx", ListingFeeCalculator.getMaxMarkupPenalty()));
-        send(ctx, "  批量折扣下限: §e" + String.format("%.1fx", ListingFeeCalculator.getMinBulkDiscount()));
-        send(ctx, "§6==================================");
+        send(ctx, "my_shop_panel.cmd.dynamic.status_header");
+        String statusKey = cfg.isEnabled() ? "my_shop_panel.cmd.dynamic.status_running" : "my_shop_panel.cmd.dynamic.status_stopped";
+        send(ctx, "my_shop_panel.cmd.dynamic.status_line", Component.translatable(statusKey));
+        send(ctx, "my_shop_panel.cmd.dynamic.interval", cfg.getTickInterval(), cfg.getTickInterval() / 20);
+        send(ctx, "my_shop_panel.cmd.dynamic.bot_balance", ShopUtils.fmt(botBalance));
+        send(ctx, "my_shop_panel.cmd.dynamic.min_retained", ShopUtils.fmt(cfg.getMinRetainedFunds()));
+        send(ctx, "my_shop_panel.cmd.dynamic.current_listings", botListings, cfg.getMaxListings());
+        send(ctx, "my_shop_panel.cmd.dynamic.max_attempts", cfg.getMaxListingItemCount());
+        send(ctx, "my_shop_panel.cmd.dynamic.restock_max", cfg.getRestockMaxCount());
+        send(ctx, "my_shop_panel.cmd.dynamic.quote_count", QuoteGroupData.size());
+        send(ctx, "my_shop_panel.cmd.dynamic.fee_rate", String.format("%.0f%%", ListingFeeCalculator.getFeeRate() * 100));
+        send(ctx, "my_shop_panel.cmd.dynamic.markup", String.format("%.1fx", ListingFeeCalculator.getMaxMarkupPenalty()));
+        send(ctx, "my_shop_panel.cmd.dynamic.bulk_discount", String.format("%.1fx", ListingFeeCalculator.getMinBulkDiscount()));
+        send(ctx, "my_shop_panel.cmd.dynamic.footer");
         return 1;
     }
 
@@ -108,11 +124,11 @@ public class MSPDynamicCommands {
         int ticks = IntegerArgumentType.getInteger(ctx, "ticks");
         DynamicSystemData cfg = DynamicSystemData.getInstance();
         if (cfg == null) {
-            send(ctx, "§c动态系统未初始化。");
+            send(ctx, "my_shop_panel.cmd.dynamic.not_init");
             return 0;
         }
         cfg.setTickInterval(ticks);
-        send(ctx, "§a巡检间隔已设为 " + ticks + " tick (" + (ticks / 20) + "秒)。");
+        send(ctx, "my_shop_panel.cmd.dynamic.interval_set", ticks, ticks / 20);
         return 1;
     }
 
@@ -125,40 +141,42 @@ public class MSPDynamicCommands {
         MarketBlacklist.loadInstance();
         ListingFeeCalculator.load(src.getServer().getServerDirectory().toPath().resolve("config").resolve("my_shop_panel"));
         DynamicSystemData.loadInstance(src.getServer().getServerDirectory().toPath().resolve("config").resolve("my_shop_panel"));
+        DynamicCategoryConfig.loadInstance(src.getServer().getServerDirectory().toPath().resolve("config").resolve("my_shop_panel"));
         QuoteGroupData.loadInstance(src.getServer().getServerDirectory().toPath().resolve("config").resolve("my_shop_panel"));
-        send(ctx, "§a动态系统配置已重载。");
+        send(ctx, "my_shop_panel.cmd.dynamic.reloaded");
         return 1;
     }
 
     private static int clearQuotes(CommandContext<CommandSourceStack> ctx) {
         int count = QuoteGroupData.size();
         QuoteGroupData.clear();
-        send(ctx, "§a报价组已清空，共删除 §6" + count + " §a条记录。");
+        send(ctx, "my_shop_panel.cmd.dynamic.quotes_cleared", count);
         return 1;
     }
 
     private static int feeStatus(CommandContext<CommandSourceStack> ctx) {
-        send(ctx, "§6========== 手续费配置 ==========");
-        send(ctx, "  状态: " + (ListingFeeCalculator.isFeeEnabled() ? "§a开启" : "§c关闭"));
-        send(ctx, "  手续费率: §e" + String.format("%.0f%%", ListingFeeCalculator.getFeeRate() * 100));
-        send(ctx, "  涨价惩罚上限: §e" + String.format("%.1fx", ListingFeeCalculator.getMaxMarkupPenalty()));
-        send(ctx, "  批量折扣下限: §e" + String.format("%.1fx", ListingFeeCalculator.getMinBulkDiscount()));
-        send(ctx, "  每件折扣: §e" + String.format("%.2f", ListingFeeCalculator.getBulkDiscountPerItem()));
-        send(ctx, "§6==================================");
+        send(ctx, "my_shop_panel.cmd.dynamic.fee_header");
+        String feeStatusKey = ListingFeeCalculator.isFeeEnabled() ? "my_shop_panel.cmd.dynamic.fee_on" : "my_shop_panel.cmd.dynamic.fee_off";
+        send(ctx, "my_shop_panel.cmd.dynamic.fee_status_line", Component.translatable(feeStatusKey));
+        send(ctx, "my_shop_panel.cmd.dynamic.fee_rate", String.format("%.0f%%", ListingFeeCalculator.getFeeRate() * 100));
+        send(ctx, "my_shop_panel.cmd.dynamic.markup", String.format("%.1fx", ListingFeeCalculator.getMaxMarkupPenalty()));
+        send(ctx, "my_shop_panel.cmd.dynamic.bulk_discount", String.format("%.1fx", ListingFeeCalculator.getMinBulkDiscount()));
+        send(ctx, "my_shop_panel.cmd.dynamic.fee_per_item", String.format("%.2f", ListingFeeCalculator.getBulkDiscountPerItem()));
+        send(ctx, "my_shop_panel.cmd.dynamic.footer");
         return 1;
     }
 
     private static int feeOff(CommandContext<CommandSourceStack> ctx) {
         ListingFeeCalculator.setFeeEnabled(false);
         ListingFeeCalculator.save();
-        send(ctx, "§e手续费已关闭，上架不再收取手续费。");
+        send(ctx, "my_shop_panel.cmd.dynamic.fee_disabled");
         return 1;
     }
 
     private static int feeOn(CommandContext<CommandSourceStack> ctx) {
         ListingFeeCalculator.setFeeEnabled(true);
         ListingFeeCalculator.save();
-        send(ctx, "§a手续费已开启。");
+        send(ctx, "my_shop_panel.cmd.dynamic.fee_enabled");
         return 1;
     }
 
@@ -166,7 +184,7 @@ public class MSPDynamicCommands {
         double v = DoubleArgumentType.getDouble(ctx, "value");
         ListingFeeCalculator.setFeeRate(v);
         ListingFeeCalculator.save();
-        send(ctx, "§a手续费率已设为 " + String.format("%.0f%%", v * 100));
+        send(ctx, "my_shop_panel.cmd.dynamic.fee_rate_set", String.format("%.0f%%", v * 100));
         return 1;
     }
 
@@ -174,7 +192,7 @@ public class MSPDynamicCommands {
         double v = DoubleArgumentType.getDouble(ctx, "value");
         ListingFeeCalculator.setMaxMarkupPenalty(v);
         ListingFeeCalculator.save();
-        send(ctx, "§a涨价惩罚上限已设为 " + String.format("%.1fx", v));
+        send(ctx, "my_shop_panel.cmd.dynamic.markup_set", String.format("%.1fx", v));
         return 1;
     }
 
@@ -182,11 +200,86 @@ public class MSPDynamicCommands {
         double v = DoubleArgumentType.getDouble(ctx, "value");
         ListingFeeCalculator.setMinBulkDiscount(v);
         ListingFeeCalculator.save();
-        send(ctx, "§a批量折扣下限已设为 " + String.format("%.1fx", v));
+        send(ctx, "my_shop_panel.cmd.dynamic.bulk_set", String.format("%.1fx", v));
         return 1;
     }
 
-    private static void send(CommandContext<CommandSourceStack> ctx, String msg) {
-        ctx.getSource().sendSuccess(() -> Component.literal(msg), false);
+    private static void send(CommandContext<CommandSourceStack> ctx, String key, Object... args) {
+        ctx.getSource().sendSuccess(() -> Component.translatable(key, args), false);
+    }
+
+    // ===== 分类配置命令 =====
+
+    private static int categoryList(CommandContext<CommandSourceStack> ctx) {
+        DynamicCategoryConfig catCfg = DynamicCategoryConfig.getInstance();
+        if (catCfg == null) {
+            send(ctx, "my_shop_panel.cmd.category.not_init");
+            return 0;
+        }
+        var cats = catCfg.getAll();
+        send(ctx, "my_shop_panel.cmd.category.header");
+        if (cats.isEmpty()) {
+            send(ctx, "my_shop_panel.cmd.category.empty");
+        } else {
+            for (DynamicCategoryConfig.CategoryConfig c : cats) {
+                String statusKey = c.enabled ? "my_shop_panel.cmd.category.status_enabled" : "my_shop_panel.cmd.category.status_disabled";
+                String status = Component.translatable(statusKey).getString();
+                send(ctx, "my_shop_panel.cmd.category.entry", c.creativeTabId,
+                        String.format("%.1f", c.weight), c.restockCost, c.listingCost, status);
+            }
+        }
+        send(ctx, "my_shop_panel.cmd.dynamic.footer");
+        return 1;
+    }
+
+    private static int categorySetWeight(CommandContext<CommandSourceStack> ctx) {
+        DynamicCategoryConfig catCfg = DynamicCategoryConfig.getInstance();
+        if (catCfg == null) {
+            send(ctx, "my_shop_panel.cmd.category.not_init");
+            return 0;
+        }
+        String tabId = StringArgumentType.getString(ctx, "tabId");
+        double weight = DoubleArgumentType.getDouble(ctx, "value");
+        catCfg.setWeight(tabId, weight);
+        send(ctx, "my_shop_panel.cmd.category.weight_set", tabId, String.format("%.1f", weight));
+        return 1;
+    }
+
+    private static int categorySetCost(CommandContext<CommandSourceStack> ctx) {
+        DynamicCategoryConfig catCfg = DynamicCategoryConfig.getInstance();
+        if (catCfg == null) {
+            send(ctx, "my_shop_panel.cmd.category.not_init");
+            return 0;
+        }
+        String tabId = StringArgumentType.getString(ctx, "tabId");
+        int restock = IntegerArgumentType.getInteger(ctx, "restock");
+        int listing = IntegerArgumentType.getInteger(ctx, "listing");
+        catCfg.setCost(tabId, restock, listing);
+        send(ctx, "my_shop_panel.cmd.category.cost_set", tabId, restock, listing);
+        return 1;
+    }
+
+    private static int categoryOff(CommandContext<CommandSourceStack> ctx) {
+        DynamicCategoryConfig catCfg = DynamicCategoryConfig.getInstance();
+        if (catCfg == null) {
+            send(ctx, "my_shop_panel.cmd.category.not_init");
+            return 0;
+        }
+        String tabId = StringArgumentType.getString(ctx, "tabId");
+        catCfg.setEnabled(tabId, false);
+        send(ctx, "my_shop_panel.cmd.category.disabled", tabId);
+        return 1;
+    }
+
+    private static int categoryOn(CommandContext<CommandSourceStack> ctx) {
+        DynamicCategoryConfig catCfg = DynamicCategoryConfig.getInstance();
+        if (catCfg == null) {
+            send(ctx, "my_shop_panel.cmd.category.not_init");
+            return 0;
+        }
+        String tabId = StringArgumentType.getString(ctx, "tabId");
+        catCfg.setEnabled(tabId, true);
+        send(ctx, "my_shop_panel.cmd.category.enabled", tabId);
+        return 1;
     }
 }

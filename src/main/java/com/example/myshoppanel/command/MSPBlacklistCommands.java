@@ -36,7 +36,7 @@ public class MSPBlacklistCommands {
     private static int addItem(CommandContext<CommandSourceStack> ctx) {
         MarketBlacklist mb = MarketBlacklist.getInstance();
         if (mb == null) {
-            ctx.getSource().sendFailure(Component.literal("§c黑名单尚未初始化。"));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.blacklist.not_init"));
             return 0;
         }
 
@@ -44,17 +44,17 @@ public class MSPBlacklistCommands {
         // 校验物品是否存在
         var item = ForgeRegistries.ITEMS.getValue(net.minecraft.resources.ResourceLocation.tryParse(itemName));
         if (item == null) {
-            ctx.getSource().sendFailure(Component.literal("§c物品 '" + itemName + "' 不存在。"));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.blacklist.item_not_found", itemName));
             return 0;
         }
 
         if (mb.add(itemName)) {
             ctx.getSource().sendSuccess(
-                    () -> Component.literal("§a已添加 §e" + itemName + " §a到黑名单。"),
+                    () -> Component.translatable("my_shop_panel.cmd.blacklist.added", itemName),
                     true);
             return 1;
         } else {
-            ctx.getSource().sendFailure(Component.literal("§c该物品已在黑名单中。"));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.blacklist.already_in"));
             return 0;
         }
     }
@@ -62,7 +62,7 @@ public class MSPBlacklistCommands {
     private static int removeItem(CommandContext<CommandSourceStack> ctx) {
         MarketBlacklist mb = MarketBlacklist.getInstance();
         if (mb == null) {
-            ctx.getSource().sendFailure(Component.literal("§c黑名单尚未初始化。"));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.blacklist.not_init"));
             return 0;
         }
 
@@ -70,11 +70,11 @@ public class MSPBlacklistCommands {
 
         if (mb.remove(itemName)) {
             ctx.getSource().sendSuccess(
-                    () -> Component.literal("§a已从黑名单移除 §e" + itemName + "§a。"),
+                    () -> Component.translatable("my_shop_panel.cmd.blacklist.removed", itemName),
                     true);
             return 1;
         } else {
-            ctx.getSource().sendFailure(Component.literal("§c该物品不在黑名单中。"));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.blacklist.not_in"));
             return 0;
         }
     }
@@ -82,18 +82,18 @@ public class MSPBlacklistCommands {
     private static int listItems(CommandContext<CommandSourceStack> ctx) {
         MarketBlacklist mb = MarketBlacklist.getInstance();
         if (mb == null) {
-            ctx.getSource().sendFailure(Component.literal("§c黑名单尚未初始化。"));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.blacklist.not_init"));
             return 0;
         }
 
         var items = mb.getBlacklist();
         if (items.isEmpty()) {
             ctx.getSource().sendSuccess(
-                    () -> Component.literal("§7黑名单为空。"),
+                    () -> Component.translatable("my_shop_panel.cmd.blacklist.empty"),
                     false);
         } else {
             ctx.getSource().sendSuccess(
-                    () -> Component.literal("§e报价黑名单: §7" + String.join(", ", items)),
+                    () -> Component.translatable("my_shop_panel.cmd.blacklist.list", String.join(", ", items)),
                     false);
         }
         return 1;

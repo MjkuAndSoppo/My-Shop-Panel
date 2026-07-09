@@ -10,11 +10,17 @@ import com.example.myshoppanel.shop.PlayerMarketListing;
 import com.example.myshoppanel.shop.ShopUtils;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.lwjgl.glfw.GLFW;
@@ -26,6 +32,8 @@ import org.lwjgl.glfw.GLFW;
 public class PlayerMarketScreen extends BaseStoreScreen {
 
     private static final int SIDEBAR_WIDTH = 82;
+    private static final int TAB_HEIGHT = 22;
+    private static final int TAB_WIDTH = 24;
 
     private int dividerX; // = imageWidth - SIDEBAR_WIDTH - 6
     private List<PlayerMarketListing> allListings = new ArrayList<>();
@@ -37,6 +45,23 @@ public class PlayerMarketScreen extends BaseStoreScreen {
     private Set<UUID> multiSelectedIds = new HashSet<>(); // 我的报价模式多选
     private int ROWS_PER_PAGE = 7; // 由 init() 动态计算
 
+    // 分类标签栏
+    private final List<TabEntry> categoryTabs = new ArrayList<>();
+    /** 当前有挂单的标签在 categoryTabs 中的索引（动态计算） */
+    private final List<Integer> visibleTabIndices = new ArrayList<>();
+    private int selectedTabIndex = 0; // 0 = 全部
+    private int tabScrollOffset = 0;
+    private static class TabEntry {
+        final String tabId;
+        final CreativeModeTab tab;
+        final ItemStack icon;
+        TabEntry(String tabId, CreativeModeTab tab, ItemStack icon) {
+            this.tabId = tabId;
+            this.tab = tab;
+            this.icon = icon;
+        }
+    }
+
     public PlayerMarketScreen() {
         super(Component.translatable("my_shop_panel.title.player_market"), 340, 240);
     }
@@ -46,6 +71,11 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         super.init();
         dividerX = imageWidth - SIDEBAR_WIDTH - 6;
         ROWS_PER_PAGE = computeRowsPerPage(24, 32, 35);
+
+        // 初始化分类标签
+        if (categoryTabs.isEmpty()) {
+            initTabs();
+        }
 
         int sideX = guiLeft + dividerX + 2;
         int btnW = SIDEBAR_WIDTH - 6;
@@ -110,7 +140,7 @@ public class PlayerMarketScreen extends BaseStoreScreen {
 
         // 页码居中，翻页按钮在页码两边
         int mainWidth = dividerX - 4;
-        List<PlayerMarketListing> totalList = showMyListings ? myListings : allListings;
+        List<PlayerMarketListing> totalList = showMyListings ? myListings : getFilteredListings();
         int totalPages = Math.max(1, (totalList.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
 
         int pageCenterX = guiLeft + mainWidth / 2;
@@ -143,7 +173,8 @@ public class PlayerMarketScreen extends BaseStoreScreen {
     public void updateListings(List<PlayerMarketListing> all, List<PlayerMarketListing> my) {
         this.allListings = all;
         this.myListings = my;
-        List<PlayerMarketListing> displayList = showMyListings ? myListings : allListings;
+        rebuildVisibleTabs();
+        List<PlayerMarketListing> displayList = showMyListings ? myListings : getFilteredListings();
         int totalPages = Math.max(1, (displayList.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
         if (page >= totalPages) {
             page = Math.max(0, totalPages - 1);
@@ -163,8 +194,11 @@ public class PlayerMarketScreen extends BaseStoreScreen {
 
         drawCenteredInMain(graphics, Component.translatable("my_shop_panel.title.player_market").getString(), guiTop + 6, 0xFFFFD700);
 
+        // 分类标签栏
+        renderCategoryTabs(graphics, mouseX, mouseY);
+
         // 表头
-        int headerY = guiTop + 18;
+        int headerY = guiTop + 44;
         int col1 = guiLeft + 8;
         int col2 = guiLeft + 104;
         int col3 = guiLeft + dividerX - 30;
@@ -172,11 +206,11 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         graphics.drawString(font, Component.translatable("my_shop_panel.label.quoted_items").getString(), col2, headerY, 0xFF888888);
         graphics.drawString(font, Component.translatable("my_shop_panel.label.price").getString(), col3 - font.width(Component.translatable("my_shop_panel.label.price").getString()), headerY, 0xFF888888);
 
-        int sepY = guiTop + 28;
+        int sepY = guiTop + 54;
         graphics.fill(guiLeft + 4, sepY, guiLeft + dividerX, sepY + 1, 0xFF_4A4A6A);
 
         // 列表
-        List<PlayerMarketListing> displayList = showMyListings ? myListings : allListings;
+        List<PlayerMarketListing> displayList = showMyListings ? myListings : getFilteredListings();
         int listTop = sepY + 3;
         int rowH = 24;
         int startIdx = page * ROWS_PER_PAGE;
@@ -259,6 +293,11 @@ public class PlayerMarketScreen extends BaseStoreScreen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // 优先处理标签栏点击
+        if (button == 0 && handleTabClick(mouseX, mouseY)) {
+            return true;
+        }
+
         // 只拦截左表列表区域的点击，底栏和右边栏由 super 处理
         int bottomBarY = guiTop + imageHeight - 32;
         boolean isLeftClick = button == 0;
@@ -267,8 +306,8 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         if ((isLeftClick || (showMyListings && isRightClick))
                 && mouseX >= guiLeft + 4 && mouseX <= guiLeft + dividerX
                 && mouseY < bottomBarY) {
-            List<PlayerMarketListing> displayList = showMyListings ? myListings : allListings;
-            int listTop = guiTop + 31;
+            List<PlayerMarketListing> displayList = showMyListings ? myListings : getFilteredListings();
+            int listTop = guiTop + 57;
             int rowH = 24;
             int startIdx = page * ROWS_PER_PAGE;
             int endIdx = Math.min(startIdx + ROWS_PER_PAGE, displayList.size());
@@ -335,26 +374,24 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         PlayerMarketListing selected = findSelected();
         if (selected == null) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§c[MyShopPanel] 该报价已失效，请重新选择。"), false);
+                    Component.translatable("my_shop_panel.market.msg.expired"), false);
             return;
         }
         int qty = selected.getItem().getCount();
         if (qty < 1) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§c[MyShopPanel] 该挂单已售空。"), false);
+                    Component.translatable("my_shop_panel.market.msg.sold_out"), false);
             return;
         }
         double cost = selected.getPrice() * qty;
         if (ClientBalanceData.balance < 0) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§c[MyShopPanel] 余额不足，当前余额: §6"
-                            + ClientBalanceData.format() + "§c，无法购买。"), false);
+                    Component.translatable("my_shop_panel.market.msg.insufficient", ClientBalanceData.format()), false);
             return;
         }
         if (ClientBalanceData.balance < cost) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§c[MyShopPanel] 余额不足，需要 " + ShopUtils.fmt(cost)
-                            + " MSPP，当前余额: " + ClientBalanceData.format()), false);
+                    Component.translatable("my_shop_panel.market.msg.insufficient_need", ShopUtils.fmt(cost), ClientBalanceData.format()), false);
             return;
         }
         NetworkHandler.sendToServer(new C2S_ConfirmTransactionPacket(
@@ -368,15 +405,14 @@ public class PlayerMarketScreen extends BaseStoreScreen {
         PlayerMarketListing selected = findSelected();
         if (selected == null) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§c[MyShopPanel] 该报价已失效，请重新选择。"), false);
+                    Component.translatable("my_shop_panel.market.msg.expired"), false);
             return;
         }
 
         // 余额为负数时禁止购买
         if (ClientBalanceData.balance < 0) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§c[MyShopPanel] 余额不足，当前余额: §6"
-                            + ClientBalanceData.format() + "§c，无法购买。"), false);
+                    Component.translatable("my_shop_panel.market.msg.insufficient", ClientBalanceData.format()), false);
             return;
         }
 
@@ -405,7 +441,7 @@ public class PlayerMarketScreen extends BaseStoreScreen {
                 }
             }
             multiSelectedIds.clear();
-            List<PlayerMarketListing> displayList = showMyListings ? myListings : allListings;
+            List<PlayerMarketListing> displayList = showMyListings ? myListings : getFilteredListings();
             int totalPages = Math.max(1, (displayList.size() + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE);
             if (page >= totalPages) {
                 page = Math.max(0, totalPages - 1);
@@ -440,11 +476,181 @@ public class PlayerMarketScreen extends BaseStoreScreen {
     /** 从当前显示列表中查找选中的挂单 */
     private PlayerMarketListing findSelected() {
         if (selectedListingId == null) return null;
-        List<PlayerMarketListing> list = showMyListings ? myListings : allListings;
+        List<PlayerMarketListing> list = showMyListings ? myListings : getFilteredListings();
         for (PlayerMarketListing l : list) {
             if (l.getListingId().equals(selectedListingId)) return l;
         }
         return null;
+    }
+
+    // ===== 分类标签栏 =====
+
+    private void initTabs() {
+        categoryTabs.clear();
+        // "全部" 标签
+        categoryTabs.add(new TabEntry("__all__", null, ItemStack.EMPTY));
+        try {
+            for (CreativeModeTab tab : CreativeModeTabs.allTabs()) {
+                if (tab == null) continue;
+                String tabId = BuiltInRegistries.CREATIVE_MODE_TAB.getKey(tab).toString();
+                ItemStack icon = tab.getIconItem();
+                if (icon.isEmpty()) {
+                    var displayItems = new ArrayList<ItemStack>();
+                    tab.getDisplayItems().forEach(displayItems::add);
+                    if (!displayItems.isEmpty()) {
+                        icon = displayItems.get(0);
+                    }
+                }
+                categoryTabs.add(new TabEntry(tabId, tab, icon));
+            }
+        } catch (Exception e) {
+            // 忽略加载错误
+        }
+        rebuildVisibleTabs();
+    }
+
+    /** 重建可见标签列表：只保留有挂单的标签（+"全部"） */
+    private void rebuildVisibleTabs() {
+        visibleTabIndices.clear();
+        visibleTabIndices.add(0); // "全部" 始终显示
+        for (int i = 1; i < categoryTabs.size(); i++) {
+            CreativeModeTab tab = categoryTabs.get(i).tab;
+            if (tab == null) continue;
+            for (PlayerMarketListing listing : allListings) {
+                try {
+                    if (tab.contains(listing.getItem())) {
+                        visibleTabIndices.add(i);
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        // 修正选中索引
+        if (selectedTabIndex >= visibleTabIndices.size()) {
+            selectedTabIndex = 0;
+        }
+    }
+
+    /**
+     * 获取过滤后的挂单列表（按当前选中的分类标签过滤）。
+     */
+    private List<PlayerMarketListing> getFilteredListings() {
+        if (selectedTabIndex == 0) return allListings;
+        if (selectedTabIndex < 1 || selectedTabIndex >= visibleTabIndices.size()) return allListings;
+        int origIdx = visibleTabIndices.get(selectedTabIndex);
+        if (origIdx < 1 || origIdx >= categoryTabs.size()) return allListings;
+        CreativeModeTab targetTab = categoryTabs.get(origIdx).tab;
+        if (targetTab == null) return allListings;
+        List<PlayerMarketListing> filtered = new ArrayList<>();
+        for (PlayerMarketListing listing : allListings) {
+            try {
+                if (targetTab.contains(listing.getItem())) {
+                    filtered.add(listing);
+                }
+            } catch (Exception ignored) {}
+        }
+        return filtered;
+    }
+
+    /** 绘制分类标签栏 */
+    private void renderCategoryTabs(GuiGraphics graphics, int mouseX, int mouseY) {
+        int mainWidth = dividerX - 4;
+        int tabAreaLeft = guiLeft + 4;
+        int tabAreaRight = guiLeft + dividerX;
+        int tabAreaY = guiTop + 18;
+        int visibleCount = visibleTabIndices.size();
+        int visibleTabs = Math.min(visibleCount, (mainWidth - 20) / (TAB_WIDTH + 2));
+
+        // 左箭头
+        if (tabScrollOffset > 0) {
+            int arrowX = tabAreaLeft;
+            graphics.fill(arrowX, tabAreaY, arrowX + 10, tabAreaY + TAB_HEIGHT, 0x44_FFFFFF);
+            graphics.drawString(font, "§7◀", arrowX + 1, tabAreaY + 5, 0xFFAAAAAA);
+            if (mouseX >= arrowX && mouseX < arrowX + 10 && mouseY >= tabAreaY && mouseY < tabAreaY + TAB_HEIGHT) {
+                graphics.fill(arrowX, tabAreaY, arrowX + 10, tabAreaY + TAB_HEIGHT, 0x66_FFFFFF);
+            }
+        }
+
+        // 右箭头
+        boolean hasMore = tabScrollOffset + visibleTabs < visibleCount;
+        if (hasMore) {
+            int arrowX = tabAreaRight - 12;
+            graphics.fill(arrowX, tabAreaY, arrowX + 10, tabAreaY + TAB_HEIGHT, 0x44_FFFFFF);
+            graphics.drawString(font, "§7▶", arrowX + 1, tabAreaY + 5, 0xFFAAAAAA);
+            if (mouseX >= arrowX && mouseX < arrowX + 10 && mouseY >= tabAreaY && mouseY < tabAreaY + TAB_HEIGHT) {
+                graphics.fill(arrowX, tabAreaY, arrowX + 10, tabAreaY + TAB_HEIGHT, 0x66_FFFFFF);
+            }
+        }
+
+        int startX = tabAreaLeft + (tabScrollOffset > 0 ? 12 : 2);
+        int endIdx = Math.min(tabScrollOffset + visibleTabs, visibleCount);
+        for (int vi = tabScrollOffset; vi < endIdx; vi++) {
+            int displayIdx = vi - tabScrollOffset;
+            int x = startX + displayIdx * (TAB_WIDTH + 2);
+            boolean isSelected = (vi == selectedTabIndex);
+            boolean hovered = mouseX >= x && mouseX < x + TAB_WIDTH && mouseY >= tabAreaY && mouseY < tabAreaY + TAB_HEIGHT;
+
+            int bgColor = isSelected ? 0xAA_FFFFFF : (hovered ? 0x66_FFFFFF : 0x33_FFFFFF);
+            graphics.fill(x, tabAreaY, x + TAB_WIDTH, tabAreaY + TAB_HEIGHT, bgColor);
+
+            if (vi == 0) {
+                drawCenteredInTab(graphics, "§7★", x, tabAreaY, TAB_WIDTH);
+            } else {
+                int origIdx = visibleTabIndices.get(vi);
+                TabEntry entry = categoryTabs.get(origIdx);
+                if (!entry.icon.isEmpty()) {
+                    graphics.renderItem(entry.icon, x + 4, tabAreaY + 2);
+                }
+            }
+        }
+    }
+
+    private void drawCenteredInTab(GuiGraphics graphics, String text, int x, int y, int w) {
+        int tx = x + w / 2 - font.width(text) / 2;
+        graphics.drawString(font, text, tx, y + 5, 0xFFFFFFFF);
+    }
+
+    /** 处理标签栏点击 */
+    private boolean handleTabClick(double mouseX, double mouseY) {
+        int mainWidth = dividerX - 4;
+        int tabAreaLeft = guiLeft + 4;
+        int tabAreaRight = guiLeft + dividerX;
+        int tabAreaY = guiTop + 18;
+        int visibleCount = visibleTabIndices.size();
+        int visibleTabs = Math.min(visibleCount, (mainWidth - 20) / (TAB_WIDTH + 2));
+
+        // 左箭头
+        if (tabScrollOffset > 0 && mouseX >= tabAreaLeft && mouseX < tabAreaLeft + 10
+                && mouseY >= tabAreaY && mouseY < tabAreaY + TAB_HEIGHT) {
+            tabScrollOffset = Math.max(0, tabScrollOffset - 1);
+            return true;
+        }
+
+        // 右箭头
+        boolean hasMore = tabScrollOffset + visibleTabs < visibleCount;
+        if (hasMore && mouseX >= tabAreaRight - 12 && mouseX < tabAreaRight - 2
+                && mouseY >= tabAreaY && mouseY < tabAreaY + TAB_HEIGHT) {
+            tabScrollOffset = Math.min(visibleCount - visibleTabs, tabScrollOffset + 1);
+            return true;
+        }
+
+        int startX = tabAreaLeft + (tabScrollOffset > 0 ? 12 : 2);
+        int endIdx = Math.min(tabScrollOffset + visibleTabs, visibleCount);
+        for (int vi = tabScrollOffset; vi < endIdx; vi++) {
+            int displayIdx = vi - tabScrollOffset;
+            int x = startX + displayIdx * (TAB_WIDTH + 2);
+            if (mouseX >= x && mouseX < x + TAB_WIDTH && mouseY >= tabAreaY && mouseY < tabAreaY + TAB_HEIGHT) {
+                if (selectedTabIndex != vi) {
+                    selectedTabIndex = vi;
+                    selectedListingId = null;
+                    multiSelectedIds.clear();
+                    page = 0;
+                    refreshWidgets();
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 选中的挂单是否是自己上架的 */

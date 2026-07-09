@@ -306,7 +306,7 @@ public class ListingSetupScreen extends BaseStoreScreen {
         qtyInput.setValue("1");
         errorMessage = Component.translatable("my_shop_panel.ok.listed").getString();
         if (minecraft != null && minecraft.player != null) minecraft.player.displayClientMessage(
-                Component.literal("§a[MyShopPanel] 物品已上架！"), false);
+                Component.translatable("my_shop_panel.list.msg.listed"), false);
     }
 
     private void handleCancel() {

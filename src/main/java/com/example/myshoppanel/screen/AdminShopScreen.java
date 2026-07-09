@@ -242,7 +242,7 @@ public class AdminShopScreen extends BaseStoreScreen {
                     if (!entry.isInfiniteStock() && entry.getStock() <= 0) {
                         if (minecraft != null && minecraft.player != null) {
                             minecraft.player.displayClientMessage(
-                                    Component.literal("§c[MyShopPanel] 该物品已售空！"), false);
+                                    Component.translatable("my_shop_panel.admin.msg.sold_out"), false);
                         }
                         return true;
                     }
@@ -303,14 +303,13 @@ public class AdminShopScreen extends BaseStoreScreen {
         if (minecraft == null || minecraft.player == null) return;
         if (!entry.isInfiniteStock() && entry.getStock() <= 0) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§c[MyShopPanel] 该物品已售空！"), false);
+                    Component.translatable("my_shop_panel.admin.msg.sold_out"), false);
             return;
         }
         double cost = entry.getPrice();
         if (ClientBalanceData.balance < cost) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§c[MyShopPanel] 余额不足，需要 " + ShopUtils.fmt(cost)
-                            + " MSPP，当前余额: " + ClientBalanceData.format()), false);
+                    Component.translatable("my_shop_panel.admin.msg.insufficient", ShopUtils.fmt(cost), ClientBalanceData.format()), false);
             return;
         }
         NetworkHandler.sendToServer(new C2S_ConfirmTransactionPacket(
@@ -324,8 +323,7 @@ public class AdminShopScreen extends BaseStoreScreen {
         double buybackPrice = Math.ceil(entry.getPrice() * 1.3 * 100) / 100;
         if (ClientBalanceData.balance < buybackPrice) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§c[MyShopPanel] 余额不足，需要 " + ShopUtils.fmt(buybackPrice)
-                            + " MSPP，当前余额: " + ClientBalanceData.format()), false);
+                    Component.translatable("my_shop_panel.admin.msg.insufficient", ShopUtils.fmt(buybackPrice), ClientBalanceData.format()), false);
             return;
         }
         NetworkHandler.sendToServer(new C2S_ConfirmTransactionPacket(

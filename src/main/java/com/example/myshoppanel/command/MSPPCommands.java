@@ -51,22 +51,22 @@ public class MSPPCommands {
         double amount = DoubleArgumentType.getDouble(ctx, "amount");
 
         if (fromPlayer.getUUID().equals(toPlayer.getUUID())) {
-            ctx.getSource().sendFailure(Component.literal("§c[MS.P.Points] 你不能给自己转账！"));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.mspp.self_transfer"));
             return 0;
         }
         MSPPointsSavedData data = MSPPointsSavedData.get(ctx.getSource().getLevel());
         double fromBalance = data.getPoints(fromPlayer.getUUID());
         if (fromBalance < amount) {
-            ctx.getSource().sendFailure(Component.literal("§c[MS.P.Points] 余额不足！当前余额: §6" + ShopUtils.fmt(fromBalance)));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.mspp.insufficient", ShopUtils.fmt(fromBalance)));
             return 0;
         }
         data.cutPoints(fromPlayer.getUUID(), amount);
         data.addPoints(toPlayer.getUUID(), amount);
 
-        fromPlayer.sendSystemMessage(Component.literal("§e[MS.P.Points] §f已向 §6" + toPlayer.getName().getString()
-                + " §f转账 §6" + ShopUtils.fmt(amount) + " §f，剩余余额: §6" + ShopUtils.fmt(data.getPoints(fromPlayer.getUUID()))));
-        toPlayer.sendSystemMessage(Component.literal("§e[MS.P.Points] §6" + fromPlayer.getName().getString()
-                + " §f向你转账了 §6" + ShopUtils.fmt(amount) + " §f，当前余额: §6" + ShopUtils.fmt(data.getPoints(toPlayer.getUUID()))));
+        fromPlayer.sendSystemMessage(Component.translatable("my_shop_panel.cmd.mspp.transfer_sent",
+                ShopUtils.fmt(amount), toPlayer.getName().getString(), ShopUtils.fmt(data.getPoints(fromPlayer.getUUID()))));
+        toPlayer.sendSystemMessage(Component.translatable("my_shop_panel.cmd.mspp.transfer_received",
+                fromPlayer.getName().getString(), ShopUtils.fmt(amount), ShopUtils.fmt(data.getPoints(toPlayer.getUUID()))));
         return 1;
     }
 
@@ -75,8 +75,8 @@ public class MSPPCommands {
         UUID uuid = target.getUUID();
         MSPPointsSavedData data = MSPPointsSavedData.get(ctx.getSource().getLevel());
         double points = data.getPoints(uuid);
-        ctx.getSource().sendSuccess(() -> Component.literal("§e[MS.P.Points] §f" + target.getName().getString()
-                + " §a余额: §6" + ShopUtils.fmt(points)), false);
+        ctx.getSource().sendSuccess(() -> Component.translatable("my_shop_panel.cmd.mspp.balance",
+                target.getName().getString(), ShopUtils.fmt(points)), false);
         return 1;
     }
 
@@ -87,8 +87,8 @@ public class MSPPCommands {
         MSPPointsSavedData data = MSPPointsSavedData.get(ctx.getSource().getLevel());
         double old = data.getPoints(uuid);
         data.setPoints(uuid, amount);
-        ctx.getSource().sendSuccess(() -> Component.literal("§e[MS.P.Points] §f已将 " + target.getName().getString()
-                + " 的点数设为 §6" + ShopUtils.fmt(amount) + "§f（原余额: §6" + ShopUtils.fmt(old) + "§f）"), true);
+        ctx.getSource().sendSuccess(() -> Component.translatable("my_shop_panel.cmd.mspp.set",
+                target.getName().getString(), ShopUtils.fmt(amount), ShopUtils.fmt(old)), true);
         return 1;
     }
 
@@ -98,8 +98,8 @@ public class MSPPCommands {
         UUID uuid = target.getUUID();
         MSPPointsSavedData data = MSPPointsSavedData.get(ctx.getSource().getLevel());
         double newBalance = data.addPoints(uuid, amount);
-        ctx.getSource().sendSuccess(() -> Component.literal("§e[MS.P.Points] §f已给 " + target.getName().getString()
-                + " 增加 §6" + ShopUtils.fmt(amount) + " §f点（余额: §6" + ShopUtils.fmt(newBalance) + "§f）"), true);
+        ctx.getSource().sendSuccess(() -> Component.translatable("my_shop_panel.cmd.mspp.add",
+                ShopUtils.fmt(amount), target.getName().getString(), ShopUtils.fmt(newBalance)), true);
         return 1;
     }
 
@@ -110,11 +110,11 @@ public class MSPPCommands {
         MSPPointsSavedData data = MSPPointsSavedData.get(ctx.getSource().getLevel());
         double oldPoints = data.getPoints(uuid);
         double newBalance = data.cutPoints(uuid, amount);
-        String warning = newBalance < 0 ? " §c⚠ 该玩家已产生透支/欠款！" : "";
-        final String fw = warning;
-        ctx.getSource().sendSuccess(() -> Component.literal("§e[MS.P.Points] §f已从 " + target.getName().getString()
-                + " 扣除 §6" + ShopUtils.fmt(amount) + " §f点。当前余额: §6" + ShopUtils.fmt(newBalance)
-                + "§f（原余额: §6" + ShopUtils.fmt(oldPoints) + "§f）" + fw), true);
+        Component warning = newBalance < 0 ? Component.translatable("my_shop_panel.cmd.mspp.overdraft_warn") : Component.empty();
+        final Component fw = warning;
+        ctx.getSource().sendSuccess(() -> Component.translatable("my_shop_panel.cmd.mspp.cut",
+                ShopUtils.fmt(amount), target.getName().getString(), ShopUtils.fmt(newBalance), ShopUtils.fmt(oldPoints))
+                .append(fw), true);
         return 1;
     }
 }

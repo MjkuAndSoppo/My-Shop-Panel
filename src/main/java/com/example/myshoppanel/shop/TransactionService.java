@@ -3,6 +3,7 @@ package com.example.myshoppanel.shop;
 import com.example.myshoppanel.economy.MSPPointsSavedData;
 import com.example.myshoppanel.economy.SimulateOfflineData;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
@@ -10,6 +11,22 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class TransactionService {
+
+    /** 记录交易历史 */
+    public static void logTransaction(ServerLevel level, UUID playerUUID, TransactionRecord.Type type,
+                                      ItemStack item, double totalPrice, String counterparty) {
+        TransactionHistoryData history = TransactionHistoryData.get(level);
+        int qty = item.getCount();
+        double unitPrice = qty > 0 ? ShopUtils.roundAmount(totalPrice / qty) : 0;
+        TransactionRecord record = new TransactionRecord(
+                type,
+                item.getDisplayName().getString(),
+                item.getItem().builtInRegistryHolder().key().location().toString(),
+                qty, totalPrice, unitPrice, counterparty,
+                System.currentTimeMillis()
+        );
+        history.addRecord(playerUUID, record);
+    }
 
     public static class TransactionPreview {
         public final UUID playerUUID;
@@ -68,6 +85,12 @@ public class TransactionService {
         toGive.setCount(actualQty);
         int warehoused = ShopUtils.giveItemWithOverflow(buyer, toGive);
 
+        // 记录交易历史
+        logTransaction(buyer.serverLevel(), buyer.getUUID(), TransactionRecord.Type.BUY,
+                toGive, totalCost, listing.getSellerName());
+        logTransaction(buyer.serverLevel(), listing.getSellerUUID(), TransactionRecord.Type.SELL,
+                toGive, totalCost, buyer.getName().getString());
+
         if (actualQty >= stackCount) {
             // 整单售出，移除挂单
             marketData.removeListing(listing.getListingId());
@@ -111,6 +134,9 @@ public class TransactionService {
                 displayId
         );
         marketData.addListing(listing);
+        // 记录上架
+        logTransaction(seller.serverLevel(), seller.getUUID(), TransactionRecord.Type.LIST,
+                toList, 0, "系统");
     }
 
     /**
@@ -124,11 +150,14 @@ public class TransactionService {
         PlayerMarketListing l = listing.get();
         // 权限检查：只有卖家本人或管理员可下架
         if (!player.getUUID().equals(l.getSellerUUID()) && !player.hasPermissions(2)) {
-            player.sendSystemMessage(Component.literal("§c[MyShopPanel] 你没有权限下架该报价单。"));
+            player.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.no_permission"));
             return false;
         }
         var removed = marketData.removeListingByDisplayId(displayId);
         if (removed.isEmpty()) return false;
+        // 记录下架
+        logTransaction(player.serverLevel(), l.getSellerUUID(), TransactionRecord.Type.DELIST,
+                removed.get().getItem(), 0, "管理员");
         return returnItemToPlayerOrWarehouse(player, removed.get().getItem(),
                 l.getSellerUUID(), l.getSellerName());
     }
@@ -144,8 +173,7 @@ public class TransactionService {
         boolean simulatedOffline = SimulateOfflineData.isSimulatedOffline(sellerUUID);
         if (seller != null && !simulatedOffline) {
             int warehoused = ShopUtils.giveItemWithOverflow(seller, item);
-            seller.sendSystemMessage(Component.literal(
-                    "§a[MyShopPanel] 你的报价单已被管理员下架，物品已退回背包。"));
+            seller.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.admin_returned"));
             ShopUtils.sendWarehouseOverflowMsg(seller, warehoused,
                     item.getDisplayName().getString());
         } else {

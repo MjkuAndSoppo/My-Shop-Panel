@@ -2,8 +2,11 @@ package com.example.myshoppanel.shop;
 
 import com.example.myshoppanel.economy.MSPPointsSavedData;
 import com.mojang.logging.LogUtils;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
@@ -32,9 +35,13 @@ public class DynamicSystemService {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RNG = new Random();
 
-    // 成本常量
-    private static final double COST_RESTOCK = 500;
+    // 成本常量（默认值，实际从 DynamicCategoryConfig 读取）
+    private static final double DEFAULT_COST_RESTOCK = 500;
+    private static final double DEFAULT_COST_LISTING = 10000;
     private static final double COST_END_ROUND = 100;
+
+    // 缓存：物品注册名 → 创造标签栏ID
+    private static final Map<String, String> itemTabCache = new HashMap<>();
 
     /**
      * 主巡检 tick。由 MyShopPanel.onServerTick 调用。
@@ -52,6 +59,9 @@ public class DynamicSystemService {
 
         // 检查报价组是否有数据
         if (QuoteGroupData.size() == 0) return;
+
+        // 确保分类配置已加载
+        DynamicCategoryConfig catCfg = DynamicCategoryConfig.getInstance();
 
         // --- 步骤1：随机 0 ~ maxListingItemCount ---
         int maxItems = cfg.getMaxListingItemCount();
@@ -72,8 +82,8 @@ public class DynamicSystemService {
 
             // 检查钱包余额是否足够任何操作
             double minRetained = cfg.getMinRetainedFunds();
-            if (botBalance < minRetained + COST_RESTOCK
-                    && botBalance < minRetained * 2) break;
+            if (botBalance < minRetained + DEFAULT_COST_RESTOCK
+                    && botBalance < minRetained + DEFAULT_COST_LISTING) break;
 
             // --- 步骤2：掷骰子 ---
             int dice = RNG.nextInt(10) + 1; // 1~10
@@ -85,15 +95,17 @@ public class DynamicSystemService {
                 break;
             } else if (dice > 5) {
                 // 补货
-                if (botBalance >= cfg.getMinRetainedFunds() + COST_RESTOCK) {
-                    if (restockExisting(botBalance, cfg, market, points, overworld)) {
+                double restockCost = DEFAULT_COST_RESTOCK;
+                if (botBalance >= cfg.getMinRetainedFunds() + restockCost) {
+                    if (restockExisting(botBalance, cfg, market, points, overworld, catCfg)) {
                         restocked++;
                     }
                 }
             } else {
                 // 新上架
-                if (botBalance >= minRetained * 2) {
-                    if (listNewItem(botBalance, cfg, market, points, overworld)) {
+                double listingCost = DEFAULT_COST_LISTING;
+                if (botBalance >= minRetained + listingCost) {
+                    if (listNewItem(botBalance, cfg, market, points, overworld, catCfg)) {
                         newListed++;
                     }
                 }
@@ -108,11 +120,11 @@ public class DynamicSystemService {
     }
 
     /**
-     * 补货：随机找一个机器人现有挂单，随机增加数量（上限可配置），扣除 COST_RESTOCK。
+     * 补货：随机找一个机器人现有挂单，随机增加数量（上限可配置），扣除对应分类的 restockCost。
      */
     private static boolean restockExisting(double botBalance, DynamicSystemData cfg,
                                            PlayerMarketSavedData market, MSPPointsSavedData points,
-                                           ServerLevel level) {
+                                           ServerLevel level, DynamicCategoryConfig catCfg) {
         List<PlayerMarketListing> botListings = market.getAllListings().stream()
                 .filter(l -> l.getSellerUUID().equals(DynamicSystemData.BOT_UUID))
                 .collect(java.util.stream.Collectors.toList());
@@ -128,10 +140,13 @@ public class DynamicSystemService {
         if (newCount <= oldCount) return false;
 
         double price = ShopUtils.roundAmount(target.getPrice() * ((double) newCount / oldCount));
-        if (botBalance < cfg.getMinRetainedFunds() + COST_RESTOCK) return false;
+
+        // 使用分类配置的 restockCost
+        double restockCost = getCategoryRestockCost(target.getItem(), catCfg);
+        if (botBalance < cfg.getMinRetainedFunds() + restockCost) return false;
 
         // 扣除成本
-        deductBotFunds(level, COST_RESTOCK);
+        deductBotFunds(level, restockCost);
 
         market.removeListing(target.getListingId());
         ItemStack newStack = target.getItem().copy();
@@ -146,18 +161,18 @@ public class DynamicSystemService {
 
     /**
      * 新上架：从报价组加权随机选物品（可重复），价值越低概率越高。
-     * 若已有同物品的机器人挂单，则叠加到已有报价上。
-     * 成本 = minRetainedFunds。
+     * 同时考虑分类权重。若已有同物品的机器人挂单，则叠加到已有报价上。
+     * 成本 = 对应分类的 listingCost。
      */
     private static boolean listNewItem(double botBalance, DynamicSystemData cfg,
                                        PlayerMarketSavedData market, MSPPointsSavedData points,
-                                       ServerLevel level) {
+                                       ServerLevel level, DynamicCategoryConfig catCfg) {
         var allEntries = QuoteGroupData.allEntries();
         if (allEntries.isEmpty()) return false;
 
         double minRetained = cfg.getMinRetainedFunds();
 
-        // 构建加权列表
+        // 构建加权列表（考虑分类权重）
         List<String> items = new ArrayList<>();
         List<Double> weights = new ArrayList<>();
         double totalWeight = 0;
@@ -167,15 +182,16 @@ public class DynamicSystemService {
             double price = entry.getValue().price;
             if (price <= 0) price = 1.0;
             double w = 1.0 / Math.sqrt(Math.max(price, 1));
+            // 乘以分类权重
+            double categoryWeight = getCategoryWeight(id, catCfg);
+            w *= categoryWeight;
+            if (w <= 0) continue; // 跳过禁用的分类
             items.add(id);
             weights.add(w);
             totalWeight += w;
         }
 
         if (totalWeight <= 0 || items.isEmpty()) return false;
-
-        // 检查余额
-        if (botBalance < minRetained + minRetained) return false; // 需要 minRetained * 2
 
         // 加权随机选择
         double roll = RNG.nextDouble() * totalWeight;
@@ -199,6 +215,12 @@ public class DynamicSystemService {
             return false;
         }
 
+        // 使用分类配置的 listingCost
+        double listingCost = getCategoryListingCost(stack, catCfg);
+
+        // 检查余额
+        if (botBalance < minRetained + listingCost) return false;
+
         // 使用报价组中的行情价格
         double quotePrice = QuoteGroupData.getPrice(chosen);
         if (quotePrice <= 0) quotePrice = ShopUtils.getEMCDefaultPrice(stack);
@@ -219,7 +241,7 @@ public class DynamicSystemService {
                 if (newCount <= oldCount) return false;
 
                 // 扣除成本
-                deductBotFunds(level, minRetained);
+                deductBotFunds(level, listingCost);
 
                 double newPrice = ShopUtils.roundAmount(quotePrice * ((double) newCount / stackCount));
                 market.removeListing(existing.getListingId());
@@ -234,7 +256,7 @@ public class DynamicSystemService {
         }
 
         // 无重复，正常新上架
-        deductBotFunds(level, minRetained);
+        deductBotFunds(level, listingCost);
 
         int displayId = market.nextDisplayId();
         PlayerMarketListing listing = new PlayerMarketListing(
@@ -267,6 +289,59 @@ public class DynamicSystemService {
         if (bal < amount) return false;
         points.cutPoints(DynamicSystemData.BOT_UUID, ShopUtils.roundAmount(amount));
         return true;
+    }
+
+    // ===== 分类配置辅助方法 =====
+
+    /**
+     * 获取物品所属的创造标签栏ID（带缓存）。
+     */
+    private static String getTabForItem(ItemStack stack) {
+        String regName = ForgeRegistries.ITEMS.getKey(stack.getItem()).toString();
+        if (itemTabCache.containsKey(regName)) {
+            return itemTabCache.get(regName);
+        }
+        try {
+            for (CreativeModeTab tab : CreativeModeTabs.allTabs()) {
+                if (tab == null) continue;
+                if (tab.contains(stack)) {
+                    String tabId = BuiltInRegistries.CREATIVE_MODE_TAB.getKey(tab).toString();
+                    itemTabCache.put(regName, tabId);
+                    return tabId;
+                }
+            }
+        } catch (Exception ignored) {}
+        itemTabCache.put(regName, "unknown");
+        return "unknown";
+    }
+
+    private static double getCategoryWeight(String itemRegName, DynamicCategoryConfig catCfg) {
+        ItemStack stack = createItemStack(itemRegName);
+        if (stack.isEmpty()) return 1.0;
+        return getCategoryWeight(stack, catCfg);
+    }
+
+    private static double getCategoryWeight(ItemStack stack, DynamicCategoryConfig catCfg) {
+        if (catCfg == null) return 1.0;
+        String tabId = getTabForItem(stack);
+        DynamicCategoryConfig.CategoryConfig cc = catCfg.get(tabId);
+        if (cc == null) return 1.0;
+        if (!cc.enabled) return 0.0;
+        return cc.weight;
+    }
+
+    private static double getCategoryListingCost(ItemStack stack, DynamicCategoryConfig catCfg) {
+        if (catCfg == null) return DEFAULT_COST_LISTING;
+        String tabId = getTabForItem(stack);
+        DynamicCategoryConfig.CategoryConfig cc = catCfg.get(tabId);
+        return cc != null ? cc.listingCost : DEFAULT_COST_LISTING;
+    }
+
+    private static double getCategoryRestockCost(ItemStack stack, DynamicCategoryConfig catCfg) {
+        if (catCfg == null) return DEFAULT_COST_RESTOCK;
+        String tabId = getTabForItem(stack);
+        DynamicCategoryConfig.CategoryConfig cc = catCfg.get(tabId);
+        return cc != null ? cc.restockCost : DEFAULT_COST_RESTOCK;
     }
 
     // ===== 工具方法 =====

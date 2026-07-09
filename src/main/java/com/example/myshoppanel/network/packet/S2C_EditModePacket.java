@@ -3,6 +3,7 @@ package com.example.myshoppanel.network.packet;
 import com.example.myshoppanel.economy.EditModeData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
@@ -26,9 +27,9 @@ public class S2C_EditModePacket {
         ctx.get().enqueueWork(() -> {
             EditModeData.enabled = msg.enabled;
             if (Minecraft.getInstance().player != null) {
-                String status = msg.enabled ? "§a已开启" : "§c已关闭";
+                Component status = Component.translatable(msg.enabled ? "my_shop_panel.cmd.mspedit.on" : "my_shop_panel.cmd.mspedit.off");
                 Minecraft.getInstance().player.displayClientMessage(
-                        net.minecraft.network.chat.Component.literal("§e[MyShopPanel] 编辑模式" + status),
+                        Component.translatable("my_shop_panel.tx.msg.edit_mode", status),
                         false
                 );
             }

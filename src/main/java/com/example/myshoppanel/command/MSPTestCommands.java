@@ -30,17 +30,15 @@ public class MSPTestCommands {
         ServerPlayer player = ctx.getSource().getPlayer();
 
         if (player == null) {
-            ctx.getSource().sendFailure(Component.literal("§c[MSPtest] 该指令只能由玩家执行。"));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.msptest.player_only"));
             return 0;
         }
 
         SimulateOfflineData.setSimulatedOffline(player.getUUID(), !enabled);
 
-        String status = enabled
-                ? "§a§l模拟在线（正常模式）"
-                : "§c§l模拟离线（下架物品将进入冗余仓库）";
+        Component status = Component.translatable(enabled ? "my_shop_panel.cmd.msptest.online" : "my_shop_panel.cmd.msptest.offline");
         ctx.getSource().sendSuccess(
-                () -> Component.literal("§e[MSPtest] OnlineMode = " + status),
+                () -> Component.translatable("my_shop_panel.cmd.msptest.toggled", status),
                 true
         );
         return 1;

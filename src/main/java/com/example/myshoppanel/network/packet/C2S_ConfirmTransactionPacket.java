@@ -86,14 +86,14 @@ public class C2S_ConfirmTransactionPacket {
 
             // 负数防护
             if (msg.quantity <= 0 || msg.price < 0) {
-                player.sendSystemMessage(Component.literal("§c[MyShopPanel] 无效的交易参数。"));
+                player.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.invalid_params"));
                 return;
             }
 
             switch (msg.type) {
                 case MARKET_BUY -> handleMarketBuy(player, msg.listingId, msg.quantity);
-                case MARKET_LIST -> player.sendSystemMessage(Component.literal(
-                        "§e[MyShopPanel] 上架请通过上架界面操作。"));
+                case MARKET_LIST -> player.sendSystemMessage(Component.translatable(
+                        "my_shop_panel.tx.msg.list_via_gui"));
                 case ADMIN_BUY -> handleAdminBuy(player, msg.adminEntryId, msg.quantity);
                 case ADMIN_SELL -> handleAdminSell(player, msg.adminEntryId, msg.quantity);
                 case ADMIN_BUYBACK -> handleAdminBuyback(player, msg.adminEntryId, msg.quantity, msg.price);
@@ -106,11 +106,11 @@ public class C2S_ConfirmTransactionPacket {
         PlayerMarketSavedData marketData = PlayerMarketSavedData.get(buyer.serverLevel());
         PlayerMarketListing listing = marketData.getListing(listingId).orElse(null);
         if (listing == null) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 该挂单已不存在或已售出。"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.listing_gone"));
             return;
         }
         if (listing.getItem().isEmpty()) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 该挂单物品数据异常。"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.item_data_error"));
             return;
         }
 
@@ -124,49 +124,48 @@ public class C2S_ConfirmTransactionPacket {
         MSPPointsSavedData points = MSPPointsSavedData.get(buyer.serverLevel());
         double bal = points.getPoints(buyer.getUUID());
         if (bal < totalCost) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 余额不足！需要 §6"
-                    + ShopUtils.fmt(totalCost) + "§c，当前余额: §6" + ShopUtils.fmt(bal)));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.insufficient_balance",
+                    ShopUtils.fmt(totalCost), ShopUtils.fmt(bal)));
             return;
         }
 
         int warehoused = TransactionService.commitMarketBuy(buyer, listing, marketData, buyQty);
         if (warehoused >= 0) {
-            buyer.sendSystemMessage(Component.literal("§a[MyShopPanel] 交易成功！"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.success"));
             ShopUtils.sendWarehouseOverflowMsg(buyer, warehoused,
                     listing.getItem().getDisplayName().getString());
         } else {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 交易失败：该挂单可能已被抢先购买，已退款。"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.race_condition"));
         }
     }
 
     private static void handleAdminBuy(ServerPlayer buyer, String entryId, int quantity) {
         if (entryId == null) return;
         if (quantity <= 0) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 数量无效。"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.invalid_qty"));
             return;
         }
         AdminShopConfig config = AdminShopConfig.getInstance();
         if (config == null) return;
         AdminShopEntry entry = config.getEntry(entryId);
         if (entry == null) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 该物品已不存在。"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.item_gone"));
             return;
         }
         if (entry.getMode() != AdminShopEntry.ShopMode.SELLING) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 该条目不支持购买。"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.entry_not_buyable"));
             return;
         }
         // 库存充足性检查：非无限库存时，库存必须 >= 购买数量
         if (!entry.isInfiniteStock() && entry.getStock() < quantity) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 库存不足！当前库存: §6" + entry.getStock()));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.insufficient_stock", entry.getStock()));
             return;
         }
         MSPPointsSavedData points = MSPPointsSavedData.get(buyer.serverLevel());
         double totalCost = ShopUtils.roundAmount(entry.getPrice() * quantity);
         if (points.getPoints(buyer.getUUID()) < totalCost) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 余额不足！需要 §6"
-                    + ShopUtils.fmt(totalCost) + "§c，当前余额: §6"
-                    + ShopUtils.fmt(points.getPoints(buyer.getUUID()))));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.insufficient_balance",
+                    ShopUtils.fmt(totalCost), ShopUtils.fmt(points.getPoints(buyer.getUUID()))));
             return;
         }
         points.cutPoints(buyer.getUUID(), totalCost);
@@ -183,10 +182,10 @@ public class C2S_ConfirmTransactionPacket {
         // 100% 利润注入机器人账户
         com.example.myshoppanel.shop.DynamicSystemService.injectBotFunds(
                 buyer.serverLevel(), totalCost, "世界商店出售-" + entry.getItemDisplayName());
-        buyer.sendSystemMessage(Component.literal("§a[MyShopPanel] 购买成功！获得了 §6"
-                + entry.getItemDisplayName() + " x" + quantity));
+        buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.buy_success",
+                entry.getItemDisplayName(), quantity));
         ShopUtils.sendWarehouseOverflowMsg(buyer, warehoused,
-                item.isEmpty() ? "物品" : item.getDisplayName().getString());
+                item.isEmpty() ? Component.translatable("my_shop_panel.misc.item").getString() : item.getDisplayName().getString());
         NetworkHandler.sendToPlayer(new S2C_AdminShopDataPacket(config.getAllEntries(),
                 points.getPoints(buyer.getUUID())), buyer);
     }
@@ -196,23 +195,23 @@ public class C2S_ConfirmTransactionPacket {
     private static void handleAdminSell(ServerPlayer seller, String entryId, int quantity) {
         if (entryId == null) return;
         if (quantity <= 0) {
-            seller.sendSystemMessage(Component.literal("§c[MyShopPanel] 数量无效。"));
+            seller.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.invalid_qty"));
             return;
         }
         AdminShopConfig config = AdminShopConfig.getInstance();
         if (config == null) return;
         AdminShopEntry entry = config.getEntry(entryId);
         if (entry == null) {
-            seller.sendSystemMessage(Component.literal("§c[MyShopPanel] 该物品已不存在。"));
+            seller.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.item_gone"));
             return;
         }
         if (entry.getMode() != AdminShopEntry.ShopMode.BUYING) {
-            seller.sendSystemMessage(Component.literal("§c[MyShopPanel] 该条目不支持出售。"));
+            seller.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.entry_not_sellable"));
             return;
         }
         ItemStack toSell = getItemStack(entry.getItemRegistryName());
         if (toSell.isEmpty()) {
-            seller.sendSystemMessage(Component.literal("§c[MyShopPanel] 物品数据异常。"));
+            seller.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.item_data_error"));
             return;
         }
         int qty = Math.min(quantity, MAX_TRANSACTION_QTY);
@@ -224,14 +223,14 @@ public class C2S_ConfirmTransactionPacket {
             }
         }
         if (found < qty) {
-            seller.sendSystemMessage(Component.literal("§c[MyShopPanel] 背包中该物品不足！"));
+            seller.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.backpack_low"));
             return;
         }
         // 库存溢出防护 — 在改库存和扣物品之前
         if (!entry.isInfiniteStock()) {
             long newStock = (long) entry.getStock() + qty;
             if (newStock > Integer.MAX_VALUE) {
-                seller.sendSystemMessage(Component.literal("§c[MyShopPanel] 库存已达上限！"));
+                seller.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.stock_full"));
                 return;
             }
         }
@@ -244,9 +243,8 @@ public class C2S_ConfirmTransactionPacket {
             entry.setStock(entry.getStock() + qty);
             config.save();
         }
-        seller.sendSystemMessage(Component.literal("§a[MyShopPanel] 卖出 §6"
-                + entry.getItemDisplayName() + " x" + qty + " §a获得 §6"
-                + ShopUtils.fmt(totalEarn)));
+        seller.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.sell_success",
+                entry.getItemDisplayName(), qty, ShopUtils.fmt(totalEarn)));
         NetworkHandler.sendToPlayer(new S2C_AdminShopDataPacket(config.getAllEntries(),
                 points.getPoints(seller.getUUID())), seller);
     }
@@ -254,22 +252,22 @@ public class C2S_ConfirmTransactionPacket {
     private static void handleAdminBuyback(ServerPlayer buyer, String entryId, int quantity, double clientPrice) {
         if (entryId == null) return;
         if (quantity <= 0) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 无效的交易参数。"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.invalid_params"));
             return;
         }
         AdminShopConfig config = AdminShopConfig.getInstance();
         if (config == null) return;
         AdminShopEntry entry = config.getEntry(entryId);
         if (entry == null) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 该物品已不存在。"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.item_gone"));
             return;
         }
         if (entry.getMode() != AdminShopEntry.ShopMode.BUYING) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 该条目不支持买回。"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.entry_not_buyback"));
             return;
         }
         if (!entry.isInfiniteStock() && entry.getStock() < quantity) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 库存不足，无法买回！"));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.insufficient_stock_buyback"));
             return;
         }
         // 服务端独立计算1.3倍买回价，不信任客户端price
@@ -277,9 +275,8 @@ public class C2S_ConfirmTransactionPacket {
         double totalCost = ShopUtils.roundAmount(buybackUnitPrice * quantity);
         MSPPointsSavedData points = MSPPointsSavedData.get(buyer.serverLevel());
         if (points.getPoints(buyer.getUUID()) < totalCost) {
-            buyer.sendSystemMessage(Component.literal("§c[MyShopPanel] 余额不足！需要 §6"
-                    + ShopUtils.fmt(totalCost) + "§c，当前余额: §6"
-                    + ShopUtils.fmt(points.getPoints(buyer.getUUID()))));
+            buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.insufficient_balance",
+                    ShopUtils.fmt(totalCost), ShopUtils.fmt(points.getPoints(buyer.getUUID()))));
             return;
         }
         points.cutPoints(buyer.getUUID(), totalCost);
@@ -297,11 +294,10 @@ public class C2S_ConfirmTransactionPacket {
         double profit = ShopUtils.roundAmount((buybackUnitPrice - entry.getPrice()) * quantity);
         com.example.myshoppanel.shop.DynamicSystemService.injectBotFunds(
                 buyer.serverLevel(), profit, "世界商店买回-" + entry.getItemDisplayName());
-        buyer.sendSystemMessage(Component.literal("§a[MyShopPanel] 以§c1.3倍§a价格买回 §6"
-                + entry.getItemDisplayName() + " x" + quantity + " §a花费 §6"
-                + ShopUtils.fmt(totalCost)));
+        buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.buyback_success",
+                entry.getItemDisplayName(), quantity, ShopUtils.fmt(totalCost)));
         ShopUtils.sendWarehouseOverflowMsg(buyer, warehousedBb,
-                item.isEmpty() ? "物品" : item.getDisplayName().getString());
+                item.isEmpty() ? Component.translatable("my_shop_panel.misc.item").getString() : item.getDisplayName().getString());
         NetworkHandler.sendToPlayer(new S2C_AdminShopDataPacket(config.getAllEntries(),
                 points.getPoints(buyer.getUUID())), buyer);
     }

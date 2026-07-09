@@ -8,16 +8,16 @@ import org.slf4j.Logger;
 
 import java.io.Reader;
 import java.io.Writer;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
- * 报价组 — 永久化记录行情价格。
+ * 报价组 — 永久化记录行情价格 + 历史趋势。
  *
  * 每当玩家在玩家市场上架物品时，记录/更新该物品的价格（折中平均）。
+ * 同时记录价格快照用于趋势图。
  * 文件：./config/my_shop_panel/quote_group.json
  *
  * 数据结构：{ "entries": { "minecraft:stone": { "price": 5.0, "count": 2 } } }
@@ -44,10 +44,25 @@ public class QuoteGroupData {
         }
     }
 
+    /** 价格快照，用于趋势图 */
+    public static class PriceSnapshot {
+        public double price;
+        public long timestamp;
+        public PriceSnapshot(double price, long timestamp) {
+            this.price = price;
+            this.timestamp = timestamp;
+        }
+    }
+
     // ---- 存储结构 ----
     private Map<String, QuoteEntry> entries = new LinkedHashMap<>();
 
+    /** 历史价格趋势：物品ID → 快照列表 */
+    private final Map<String, List<PriceSnapshot>> priceHistory = new LinkedHashMap<>();
+    private static final int MAX_HISTORY = 100; // 每物品最多 100 个快照
+
     private transient Path configPath;
+    private transient Path historyPath;
 
     // ---- 单例 ----
     private static QuoteGroupData instance;
@@ -57,6 +72,7 @@ public class QuoteGroupData {
     public static void loadInstance(Path configDir) {
         instance = new QuoteGroupData();
         instance.configPath = configDir.resolve(FILE_NAME);
+        instance.historyPath = configDir.resolve("quote_history.json");
         if (Files.exists(instance.configPath)) {
             try (Reader reader = Files.newBufferedReader(instance.configPath)) {
                 var wrapper = GSON.fromJson(reader,
@@ -74,7 +90,19 @@ public class QuoteGroupData {
         } else {
             instance.save();
         }
-        LOGGER.info("[MyShopPanel] 报价组已加载: {} 条记录", instance.entries.size());
+        // 加载历史趋势
+        if (Files.exists(instance.historyPath)) {
+            try (Reader reader = Files.newBufferedReader(instance.historyPath)) {
+                Type historyType = new TypeToken<Map<String, List<PriceSnapshot>>>(){}.getType();
+                Map<String, List<PriceSnapshot>> loaded = GSON.fromJson(reader, historyType);
+                if (loaded != null) {
+                    instance.priceHistory.putAll(loaded);
+                }
+            } catch (Exception e) {
+                LOGGER.error("[MyShopPanel] 报价历史加载失败", e);
+            }
+        }
+        LOGGER.info("[MyShopPanel] 报价组已加载: {} 条记录, {} 条历史", instance.entries.size(), instance.priceHistory.size());
     }
 
     public void save() {
@@ -88,6 +116,19 @@ public class QuoteGroupData {
             }
         } catch (Exception e) {
             LOGGER.error("[MyShopPanel] 报价组保存失败", e);
+        }
+    }
+
+    /** 保存历史趋势到单独文件 */
+    private void saveHistory() {
+        if (historyPath == null) return;
+        try {
+            Files.createDirectories(historyPath.getParent());
+            try (Writer writer = Files.newBufferedWriter(historyPath)) {
+                GSON.toJson(priceHistory, writer);
+            }
+        } catch (Exception e) {
+            LOGGER.error("[MyShopPanel] 报价历史保存失败", e);
         }
     }
 
@@ -113,7 +154,14 @@ public class QuoteGroupData {
             entry.updateCount = oldCount + 1; // 上架次数 +1（不计数量）
             entry.price = Math.round(entry.price * 100.0) / 100.0; // 保留两位小数
         }
+        // 记录价格历史快照
+        List<PriceSnapshot> snapshots = instance.priceHistory.computeIfAbsent(registryName, k -> new ArrayList<>());
+        snapshots.add(new PriceSnapshot(entry.price, System.currentTimeMillis()));
+        while (snapshots.size() > MAX_HISTORY) {
+            snapshots.remove(0);
+        }
         instance.save();
+        instance.saveHistory();
         LOGGER.debug("[MyShopPanel] 报价组更新: {} → {} MSPP (第{}次)", registryName, entry.price, entry.updateCount);
     }
 
@@ -140,7 +188,21 @@ public class QuoteGroupData {
     public static void clear() {
         if (instance == null) return;
         instance.entries.clear();
+        instance.priceHistory.clear();
         instance.save();
+        instance.saveHistory();
         LOGGER.info("[MyShopPanel] 报价组已清空");
+    }
+
+    /** 获取某物品的价格历史快照 */
+    public static List<PriceSnapshot> getHistory(String registryName) {
+        if (instance == null) return List.of();
+        return instance.priceHistory.getOrDefault(registryName, List.of());
+    }
+
+    /** 获取所有有历史记录的物品 ID */
+    public static Set<String> getHistoryItemIds() {
+        if (instance == null) return Set.of();
+        return new LinkedHashSet<>(instance.priceHistory.keySet());
     }
 }

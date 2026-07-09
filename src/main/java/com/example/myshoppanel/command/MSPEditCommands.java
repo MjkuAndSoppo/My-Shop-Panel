@@ -26,15 +26,15 @@ public class MSPEditCommands {
         ServerPlayer player = ctx.getSource().getPlayer();
 
         if (player == null) {
-            ctx.getSource().sendFailure(Component.literal("§c[MSPEdit] 该指令只能由玩家执行。"));
+            ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.mspedit.player_only"));
             return 0;
         }
 
         NetworkHandler.sendToPlayer(new S2C_EditModePacket(enabled), player);
 
-        String status = enabled ? "§a开启" : "§c关闭";
+        Component status = Component.translatable(enabled ? "my_shop_panel.cmd.mspedit.on" : "my_shop_panel.cmd.mspedit.off");
         ctx.getSource().sendSuccess(
-                () -> Component.literal("§e[MSPEdit] 编辑模式已" + status),
+                () -> Component.translatable("my_shop_panel.cmd.mspedit.toggled", status),
                 true
         );
 

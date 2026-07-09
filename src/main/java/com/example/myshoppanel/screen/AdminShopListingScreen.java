@@ -234,7 +234,7 @@ public class AdminShopListingScreen extends BaseStoreScreen {
 
         if (minecraft != null && minecraft.player != null) {
             minecraft.player.displayClientMessage(
-                    Component.literal("§a[MyShopPanel] 世界商店物品已上架！"), false);
+                    Component.translatable("my_shop_panel.admin.msg.listed"), false);
 
             // 回到编辑界面
             minecraft.setScreen(new AdminShopEditScreen());
