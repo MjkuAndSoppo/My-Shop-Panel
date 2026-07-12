@@ -58,14 +58,6 @@ public class MainMenuScreen extends BaseStoreScreen {
                     Component.translatable("my_shop_panel.menu.history"),
                     btn -> openTransactionHistory()
             ).pos(btnX, y).size(btnWidth, btnHeight).build());
-            y += gap;
-        }
-
-        if (MainMenuConfig.isEnabled("price_trend")) {
-            addRenderableWidget(Button.builder(
-                    Component.translatable("my_shop_panel.menu.price_trend"),
-                    btn -> openPriceTrend()
-            ).pos(btnX, y).size(btnWidth, btnHeight).build());
         }
     }
 
@@ -80,5 +72,4 @@ public class MainMenuScreen extends BaseStoreScreen {
     private void openAdminShopEdit() { if (minecraft != null) minecraft.setScreen(new AdminShopEditScreen()); }
     private void openRedundantWarehouse() { if (minecraft != null) minecraft.setScreen(new RedundantWarehouseScreen()); }
     private void openTransactionHistory() { if (minecraft != null) minecraft.setScreen(new TransactionHistoryScreen()); }
-    private void openPriceTrend() { if (minecraft != null) minecraft.setScreen(new PriceTrendScreen()); }
 }

@@ -39,7 +39,9 @@ public class PlayerMarketListing {
         tag.putUUID("ListingId", listingId);
         tag.putUUID("SellerUUID", sellerUUID);
         tag.putString("SellerName", sellerName);
-        tag.put("Item", item.save(new CompoundTag()));
+        CompoundTag itemTag = item.save(new CompoundTag());
+        itemTag.putInt("Count", item.getCount()); // 覆盖byte为int，防止count>127溢出成空气
+        tag.put("Item", itemTag);
         tag.putDouble("Price", price);
         tag.putLong("Timestamp", timestamp);
         tag.putInt("DisplayId", displayId);

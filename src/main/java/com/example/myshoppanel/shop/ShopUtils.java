@@ -23,7 +23,7 @@ public class ShopUtils {
         if (Math.abs(v - rounded) < 1e-9) {
             return String.format("%,d MSPP", rounded);
         }
-        return String.format("%,.2f MSPP", v);
+        return String.format("%,.2f MSPP", v).replace(".", " .");
     }
 
     /** 将金额四舍五入到合理精度，避免浮点误差累积 */

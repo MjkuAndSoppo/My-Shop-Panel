@@ -28,7 +28,6 @@ public class MainMenuConfig {
         DEFAULT.put("admin_shop", true);
         DEFAULT.put("warehouse", true);
         DEFAULT.put("history", true);
-        DEFAULT.put("price_trend", true);
     }
 
     private static Map<String, Boolean> config = new LinkedHashMap<>(DEFAULT);

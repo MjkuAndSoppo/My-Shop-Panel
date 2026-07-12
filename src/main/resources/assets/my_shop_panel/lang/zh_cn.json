@@ -7,7 +7,6 @@
   "my_shop_panel.menu.edit": "§e编辑",
   "my_shop_panel.menu.warehouse": "§c冗余仓库",
   "my_shop_panel.menu.history": "§e交易记录",
-  "my_shop_panel.menu.price_trend": "§e价格走势",
 
   "my_shop_panel.admin.buy_tab": "§e购买",
   "my_shop_panel.admin.buy_tab_dim": "§7购买",
@@ -24,8 +23,8 @@
   "my_shop_panel.mkt.buy_btn_dim": "§7购买",
   "my_shop_panel.mkt.delist_btn": "§c下架",
   "my_shop_panel.mkt.delist_btn_dim": "§7下架",
-  "my_shop_panel.mkt.my_listings": "§e我的报价",
-  "my_shop_panel.mkt.all_listings": "§e全部报价",
+  "my_shop_panel.mkt.my_listings": "§e查看我的报价",
+  "my_shop_panel.mkt.all_listings": "§e查看全部报价",
   "my_shop_panel.mkt.list_btn": "§a上架",
 
   "my_shop_panel.wh.retrieve": "§a取回",
@@ -145,11 +144,6 @@
   "my_shop_panel.history.prev_page": "< 上一页",
   "my_shop_panel.history.next_page": "下一页 >",
   "my_shop_panel.history.page": "§7第 %s/%s 页",
-
-  "my_shop_panel.trend.title": "§e§l价格走势",
-  "my_shop_panel.trend.item_list": "§7物品列表",
-  "my_shop_panel.trend.select_hint": "§7选择左侧物品查看价格走势",
-  "my_shop_panel.trend.current": "§f当前: §e%s MSPP",
 
   "my_shop_panel.cmd.dynamic.not_init": "§c动态系统未初始化。",
   "my_shop_panel.cmd.dynamic.enabled": "§a动态系统已开启。",

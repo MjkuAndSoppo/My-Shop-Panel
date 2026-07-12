@@ -19,7 +19,7 @@ import java.util.Map;
  */
 public class MSPMainCommands {
 
-    private static final String[] VALID_BUTTONS = {"player_market", "admin_shop", "warehouse", "history", "price_trend"};
+    private static final String[] VALID_BUTTONS = {"player_market", "admin_shop", "warehouse", "history"};
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("mspMain")
@@ -75,7 +75,6 @@ public class MSPMainCommands {
             case "admin_shop" -> "世界商店";
             case "warehouse" -> "冗余仓库";
             case "history" -> "交易记录";
-            case "price_trend" -> "价格走势";
             default -> id;
         };
     }

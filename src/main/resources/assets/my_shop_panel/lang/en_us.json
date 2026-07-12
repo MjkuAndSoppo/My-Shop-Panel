@@ -7,7 +7,6 @@
   "my_shop_panel.menu.edit": "Edit",
   "my_shop_panel.menu.warehouse": "Warehouse",
   "my_shop_panel.menu.history": "Transaction History",
-  "my_shop_panel.menu.price_trend": "Price Trend",
 
   "my_shop_panel.admin.buy_tab": "Buy",
   "my_shop_panel.admin.buy_tab_dim": "Buy",
@@ -24,8 +23,8 @@
   "my_shop_panel.mkt.buy_btn_dim": "Buy",
   "my_shop_panel.mkt.delist_btn": "Delist",
   "my_shop_panel.mkt.delist_btn_dim": "Delist",
-  "my_shop_panel.mkt.my_listings": "My Listings",
-  "my_shop_panel.mkt.all_listings": "All Listings",
+  "my_shop_panel.mkt.my_listings": "View My Listings",
+  "my_shop_panel.mkt.all_listings": "View All Listings",
   "my_shop_panel.mkt.list_btn": "List",
 
   "my_shop_panel.wh.retrieve": "Retrieve",
@@ -145,11 +144,6 @@
   "my_shop_panel.history.prev_page": "< Prev",
   "my_shop_panel.history.next_page": "Next >",
   "my_shop_panel.history.page": "Page %s/%s",
-
-  "my_shop_panel.trend.title": "Price Trend",
-  "my_shop_panel.trend.item_list": "Item List",
-  "my_shop_panel.trend.select_hint": "Select an item from the left to view price trend",
-  "my_shop_panel.trend.current": "Current: %s MSPP",
 
   "my_shop_panel.cmd.dynamic.not_init": "Dynamic system is not initialized.",
   "my_shop_panel.cmd.dynamic.enabled": "Dynamic system enabled.",

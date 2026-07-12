@@ -60,15 +60,6 @@ public class NetworkHandler {
                 C2S_RequestTransactionHistoryPacket::encode, C2S_RequestTransactionHistoryPacket::decode, C2S_RequestTransactionHistoryPacket::handle);
         CHANNEL.registerMessage(packetId++, S2C_TransactionHistoryPacket.class,
                 S2C_TransactionHistoryPacket::encode, S2C_TransactionHistoryPacket::decode, S2C_TransactionHistoryPacket::handle);
-        // 价格走势
-        CHANNEL.registerMessage(packetId++, C2S_RequestPriceItemListPacket.class,
-                C2S_RequestPriceItemListPacket::encode, C2S_RequestPriceItemListPacket::decode, C2S_RequestPriceItemListPacket::handle);
-        CHANNEL.registerMessage(packetId++, S2C_PriceItemListPacket.class,
-                S2C_PriceItemListPacket::encode, S2C_PriceItemListPacket::decode, S2C_PriceItemListPacket::handle);
-        CHANNEL.registerMessage(packetId++, C2S_RequestPriceHistoryPacket.class,
-                C2S_RequestPriceHistoryPacket::encode, C2S_RequestPriceHistoryPacket::decode, C2S_RequestPriceHistoryPacket::handle);
-        CHANNEL.registerMessage(packetId++, S2C_PriceHistoryPacket.class,
-                S2C_PriceHistoryPacket::encode, S2C_PriceHistoryPacket::decode, S2C_PriceHistoryPacket::handle);
     }
 
     /** 向指定玩家发送数据包 */

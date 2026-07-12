@@ -275,18 +275,6 @@ public class PlayerMarketScreen extends BaseStoreScreen {
 
         graphics.fill(sX + 1, guiTop + 22, sX + SIDEBAR_WIDTH - 4, guiTop + 23, 0xFF_4A4A6A);
 
-        if (!showMyListings) {
-            PlayerMarketListing sel = findSelected();
-            String label = (sel != null && isOwnListing(sel))
-                    ? Component.translatable("my_shop_panel.mkt.delist_btn_dim").getString()
-                    : Component.translatable("my_shop_panel.mkt.buy_btn_dim").getString();
-            graphics.drawString(font, label, sX + 4, guiTop + 33, 0xFF888888);
-        } else {
-            graphics.drawString(font, Component.translatable("my_shop_panel.mkt.delist_btn_dim").getString(), sX + 4, guiTop + 33, 0xFF888888);
-        }
-        graphics.drawString(font, Component.translatable("my_shop_panel.mkt.my_listings").getString(), sX + 4, guiTop + 59, 0xFF888888);
-        graphics.drawString(font, Component.translatable("my_shop_panel.mkt.list_btn").getString(), sX + 4, guiTop + 85, 0xFF888888);
-
         graphics.fill(guiLeft + dividerX, guiTop + 4, guiLeft + dividerX + 1,
                 guiTop + imageHeight - 4, 0xFF_4A4A6A);
     }

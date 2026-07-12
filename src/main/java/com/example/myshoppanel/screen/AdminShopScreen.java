@@ -210,13 +210,6 @@ public class AdminShopScreen extends BaseStoreScreen {
 
         graphics.fill(sX + 1, guiTop + 22, sX + SIDEBAR_WIDTH - 4, guiTop + 23, 0xFF_4A4A6A);
 
-        graphics.drawString(font, Component.translatable("my_shop_panel.label.sell").getString(), sX + 4, guiTop + 33, 0xFF888888);
-        graphics.drawString(font, Component.translatable("my_shop_panel.label.buy").getString(), sX + 4, guiTop + 59, 0xFF888888);
-        graphics.drawString(font, showBuying
-                ? Component.translatable("my_shop_panel.hint.left_click_buy").getString()
-                : Component.translatable("my_shop_panel.hint.left_click_sell").getString(),
-                sX + 4, guiTop + 85, 0xFF888888);
-
         graphics.fill(guiLeft + dividerX, guiTop + 4, guiLeft + dividerX + 1,
                 guiTop + imageHeight - 4, 0xFF_4A4A6A);
     }
