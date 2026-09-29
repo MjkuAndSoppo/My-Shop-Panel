@@ -1,12 +1,9 @@
 package com.example.myshoppanel.network.packet;
 
-import com.example.myshoppanel.economy.ClientBalanceData;
-import com.example.myshoppanel.screen.AdminShopEditScreen;
-import com.example.myshoppanel.screen.AdminShopScreen;
-import com.example.myshoppanel.screen.MainMenuScreen;
-import com.example.myshoppanel.screen.PlayerMarketScreen;
-import net.minecraft.client.Minecraft;
+import com.example.myshoppanel.client.ClientPacketHandlers;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
@@ -28,6 +25,9 @@ public class S2C_OpenMenuPacket {
         this.balance = balance;
     }
 
+    public MenuType getMenuType() { return menuType; }
+    public double getBalance() { return balance; }
+
     public static void encode(S2C_OpenMenuPacket msg, FriendlyByteBuf buf) {
         buf.writeEnum(msg.menuType);
         buf.writeDouble(msg.balance);
@@ -38,16 +38,8 @@ public class S2C_OpenMenuPacket {
     }
 
     public static void handle(S2C_OpenMenuPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            ClientBalanceData.balance = msg.balance;
-            Minecraft mc = Minecraft.getInstance();
-            switch (msg.menuType) {
-                case MAIN_MENU -> mc.setScreen(new MainMenuScreen());
-                case PLAYER_MARKET -> mc.setScreen(new PlayerMarketScreen());
-                case ADMIN_SHOP -> mc.setScreen(new AdminShopScreen());
-                case ADMIN_SHOP_EDIT -> mc.setScreen(new AdminShopEditScreen());
-            }
-        });
+        ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                () -> () -> ClientPacketHandlers.handleOpenMenu(msg)));
         ctx.get().setPacketHandled(true);
     }
 }

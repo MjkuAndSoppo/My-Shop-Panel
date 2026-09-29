@@ -1,11 +1,10 @@
 package com.example.myshoppanel.network.packet;
 
-import com.example.myshoppanel.economy.ClientBalanceData;
-import com.example.myshoppanel.screen.AdminShopEditScreen;
-import com.example.myshoppanel.screen.AdminShopScreen;
+import com.example.myshoppanel.client.ClientPacketHandlers;
 import com.example.myshoppanel.shop.AdminShopEntry;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
@@ -23,6 +22,9 @@ public class S2C_AdminShopDataPacket {
         this.entries = entries != null ? entries : new ArrayList<>();
         this.balance = balance;
     }
+
+    public List<AdminShopEntry> getEntries() { return entries; }
+    public double getBalance() { return balance; }
 
     public static void encode(S2C_AdminShopDataPacket msg, FriendlyByteBuf buf) {
         buf.writeInt(msg.entries.size());
@@ -60,15 +62,8 @@ public class S2C_AdminShopDataPacket {
     }
 
     public static void handle(S2C_AdminShopDataPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            ClientBalanceData.balance = msg.balance;
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.screen instanceof AdminShopScreen screen) {
-                screen.updateEntries(msg.entries);
-            } else if (mc.screen instanceof AdminShopEditScreen editScreen) {
-                editScreen.updateEntries(msg.entries);
-            }
-        });
+        ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                () -> () -> ClientPacketHandlers.handleAdminShopData(msg)));
         ctx.get().setPacketHandled(true);
     }
 }

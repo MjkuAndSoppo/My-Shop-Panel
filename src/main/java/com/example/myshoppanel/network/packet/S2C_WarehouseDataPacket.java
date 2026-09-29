@@ -1,11 +1,14 @@
 package com.example.myshoppanel.network.packet;
 
+import com.example.myshoppanel.client.ClientPacketHandlers;
 import com.example.myshoppanel.shop.RedundantWarehouseSavedData;
 import com.example.myshoppanel.shop.WarehouseItem;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
@@ -73,12 +76,8 @@ public class S2C_WarehouseDataPacket {
     }
 
     public static void handle(S2C_WarehouseDataPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-            if (mc.screen instanceof com.example.myshoppanel.screen.RedundantWarehouseScreen screen) {
-                screen.updateData(msg.pages, msg.pageTimers);
-            }
-        });
+        ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                () -> () -> ClientPacketHandlers.handleWarehouseData(msg)));
         ctx.get().setPacketHandled(true);
     }
 }

@@ -1,9 +1,9 @@
 package com.example.myshoppanel.network.packet;
 
-import com.example.myshoppanel.economy.EditModeData;
-import net.minecraft.client.Minecraft;
+import com.example.myshoppanel.client.ClientPacketHandlers;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
@@ -15,6 +15,8 @@ public class S2C_EditModePacket {
         this.enabled = enabled;
     }
 
+    public boolean isEnabled() { return enabled; }
+
     public static void encode(S2C_EditModePacket msg, FriendlyByteBuf buf) {
         buf.writeBoolean(msg.enabled);
     }
@@ -24,16 +26,8 @@ public class S2C_EditModePacket {
     }
 
     public static void handle(S2C_EditModePacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            EditModeData.enabled = msg.enabled;
-            if (Minecraft.getInstance().player != null) {
-                Component status = Component.translatable(msg.enabled ? "my_shop_panel.cmd.mspedit.on" : "my_shop_panel.cmd.mspedit.off");
-                Minecraft.getInstance().player.displayClientMessage(
-                        Component.translatable("my_shop_panel.tx.msg.edit_mode", status),
-                        false
-                );
-            }
-        });
+        ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                () -> () -> ClientPacketHandlers.handleEditMode(msg)));
         ctx.get().setPacketHandled(true);
     }
 }

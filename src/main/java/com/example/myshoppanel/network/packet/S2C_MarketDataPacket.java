@@ -1,13 +1,13 @@
 package com.example.myshoppanel.network.packet;
 
-import com.example.myshoppanel.economy.ClientBalanceData;
-import com.example.myshoppanel.screen.PlayerMarketScreen;
+import com.example.myshoppanel.client.ClientPacketHandlers;
 import com.example.myshoppanel.shop.PlayerMarketListing;
-import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
@@ -25,6 +25,10 @@ public class S2C_MarketDataPacket {
         this.myListings = myListings != null ? myListings : new ArrayList<>();
         this.balance = balance;
     }
+
+    public List<PlayerMarketListing> getAllListings() { return allListings; }
+    public List<PlayerMarketListing> getMyListings() { return myListings; }
+    public double getBalance() { return balance; }
 
     public static void encode(S2C_MarketDataPacket msg, FriendlyByteBuf buf) {
         ListTag allTag = new ListTag();
@@ -68,13 +72,8 @@ public class S2C_MarketDataPacket {
     }
 
     public static void handle(S2C_MarketDataPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            ClientBalanceData.balance = msg.balance;
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.screen instanceof PlayerMarketScreen screen) {
-                screen.updateListings(msg.allListings, msg.myListings);
-            }
-        });
+        ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                () -> () -> ClientPacketHandlers.handleMarketData(msg)));
         ctx.get().setPacketHandled(true);
     }
 }

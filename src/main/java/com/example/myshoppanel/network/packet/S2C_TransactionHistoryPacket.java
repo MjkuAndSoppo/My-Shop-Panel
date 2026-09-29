@@ -1,7 +1,6 @@
 package com.example.myshoppanel.network.packet;
 
 import com.example.myshoppanel.shop.TransactionRecord;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
 
