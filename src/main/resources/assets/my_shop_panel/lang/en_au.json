@@ -81,6 +81,7 @@
   "my_shop_panel.hint.owned": "(Owned: %s)",
   "my_shop_panel.hint.price_label": "Price (MSPP):",
   "my_shop_panel.hint.qty_label": "Qty:",
+  "my_shop_panel.hint.need_terminal": "§cRequires a Quotation Terminal to open the shop by hotkey",
 
   "my_shop_panel.empty.no_buy": "No items available to buy",
   "my_shop_panel.empty.no_sell": "No items available to sell",

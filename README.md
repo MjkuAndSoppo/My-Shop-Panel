@@ -2,7 +2,7 @@
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1-green)](https://www.minecraft.net/)
 [![Forge](https://img.shields.io/badge/Forge-47.x-red)](https://files.minecraftforge.net/)
-[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPLv3-blue)](LICENSE)
 
 轻量级 Minecraft Forge 经济模组。独立货币 + 玩家自由市场 + 动态系统 + OP 官方商店，统一通过 **报价终端** 操作。
 
@@ -273,4 +273,4 @@ cd MyShopPanel
 
 ## 许可
 
-MIT License — 自由使用、修改、分发。
+GNU General Public License v3.0 — 自由使用、修改、分发，衍生作品须同样以 GPL-3.0 开源。

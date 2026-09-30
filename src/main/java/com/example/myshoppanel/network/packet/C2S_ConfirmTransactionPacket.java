@@ -179,9 +179,6 @@ public class C2S_ConfirmTransactionPacket {
             entry.setStock(entry.getStock() - quantity);
             config.save();
         }
-        // 100% 利润注入机器人账户
-        com.example.myshoppanel.shop.DynamicSystemService.injectBotFunds(
-                buyer.serverLevel(), totalCost, "世界商店出售-" + entry.getItemDisplayName());
         buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.buy_success",
                 entry.getItemDisplayName(), quantity));
         ShopUtils.sendWarehouseOverflowMsg(buyer, warehoused,
@@ -290,10 +287,6 @@ public class C2S_ConfirmTransactionPacket {
             entry.setStock(entry.getStock() - quantity);
             config.save();
         }
-        // 25% 买回差价注入机器人账户
-        double profit = ShopUtils.roundAmount((buybackUnitPrice - entry.getPrice()) * quantity);
-        com.example.myshoppanel.shop.DynamicSystemService.injectBotFunds(
-                buyer.serverLevel(), profit, "世界商店买回-" + entry.getItemDisplayName());
         buyer.sendSystemMessage(Component.translatable("my_shop_panel.tx.msg.buyback_success",
                 entry.getItemDisplayName(), quantity, ShopUtils.fmt(totalCost)));
         ShopUtils.sendWarehouseOverflowMsg(buyer, warehousedBb,

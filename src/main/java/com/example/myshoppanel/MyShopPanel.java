@@ -16,12 +16,11 @@ import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.shop.MainMenuConfig;
 import com.example.myshoppanel.shop.AdminShopConfig;
 import com.example.myshoppanel.shop.DynamicCategoryConfig;
-import com.example.myshoppanel.shop.DynamicSystemData;
-import com.example.myshoppanel.shop.DynamicSystemService;
 import com.example.myshoppanel.shop.QuoteGroupData;
 import com.example.myshoppanel.shop.ListingFeeCalculator;
 import com.example.myshoppanel.shop.MarketBlacklist;
 import com.example.myshoppanel.shop.RedundantWarehouseSavedData;
+import com.example.myshoppanel.shop.ServerConfig;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -103,8 +102,8 @@ public class MyShopPanel
         var configDir = event.getServer().getServerDirectory().toPath().resolve("config").resolve("my_shop_panel");
         AdminShopConfig.loadInstance();
         MarketBlacklist.loadInstance();
+        ServerConfig.load(configDir);
         ListingFeeCalculator.load(configDir);
-        DynamicSystemData.loadInstance(configDir);
         DynamicCategoryConfig.loadInstance(configDir);
         QuoteGroupData.loadInstance(configDir);
         LOGGER.info("[MyShopPanel] Server starting - My Shop Panel is ready!");
@@ -139,9 +138,6 @@ public class MyShopPanel
                 RedundantWarehouseSavedData.get(level).tick();
             }
         }
-
-        // 动态系统巡检（在主世界执行）
-        DynamicSystemService.onServerTick(server.overworld(), tick);
 
         // 登录后1分钟(1200tick)提醒
         if (!warehouseDelayTicks.isEmpty()) {

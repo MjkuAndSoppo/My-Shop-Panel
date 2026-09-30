@@ -81,6 +81,7 @@
   "my_shop_panel.hint.owned": "(擁有 %s 個)",
   "my_shop_panel.hint.price_label": "標價 (MSPP):",
   "my_shop_panel.hint.qty_label": "數量:",
+  "my_shop_panel.hint.need_terminal": "§c需要擁有報價終端才能使用快捷鍵打開商店",
 
   "my_shop_panel.empty.no_buy": "暫無可購買物品",
   "my_shop_panel.empty.no_sell": "暫無可出售物品",

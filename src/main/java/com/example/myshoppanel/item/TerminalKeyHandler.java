@@ -4,7 +4,6 @@ import com.example.myshoppanel.MyShopPanel;
 import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.network.packet.C2S_OpenTerminalPacket;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -23,18 +22,7 @@ public class TerminalKeyHandler {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.screen != null) return;
 
-        // 检查背包是否有报价终端
-        boolean hasTerminal = false;
-        for (ItemStack stack : mc.player.getInventory().items) {
-            if (stack.getItem() instanceof QuotationTerminalItem) {
-                hasTerminal = true;
-                break;
-            }
-        }
-
-        if (hasTerminal) {
-            // 通过发包让服务端打开主菜单（同步余额）
-            NetworkHandler.sendToServer(new C2S_OpenTerminalPacket());
-        }
+        // 是否需要拥有报价终端由服务端配置决定，客户端直接请求服务端打开
+        NetworkHandler.sendToServer(new C2S_OpenTerminalPacket());
     }
 }

@@ -5,7 +5,6 @@ import com.example.myshoppanel.network.NetworkHandler;
 import com.example.myshoppanel.network.packet.C2S_ConfirmTransactionPacket;
 import com.example.myshoppanel.network.packet.C2S_DelistItemPacket;
 import com.example.myshoppanel.network.packet.C2S_RequestMarketDataPacket;
-import com.example.myshoppanel.shop.DynamicSystemData;
 import com.example.myshoppanel.shop.PlayerMarketListing;
 import com.example.myshoppanel.shop.ShopUtils;
 import net.minecraft.client.gui.GuiGraphics;
@@ -241,8 +240,7 @@ public class PlayerMarketScreen extends BaseStoreScreen {
 
                 // 用户列: #displayId 卖家名
                 String seller = "#" + listing.getDisplayId() + " " + listing.getSellerName();
-                boolean isBot = listing.getSellerUUID().equals(DynamicSystemData.BOT_UUID);
-                String sellerText = isBot ? "§9" + truncate(seller, 16) : "§f" + truncate(seller, 16);
+                String sellerText = "§f" + truncate(seller, 16);
                 graphics.drawString(font, sellerText, col1, rowY + 3, 0xFFFFFFFF);
 
                 // 物品图标 + 名称 x数量

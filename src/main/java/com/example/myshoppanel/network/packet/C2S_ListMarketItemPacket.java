@@ -1,7 +1,6 @@
 package com.example.myshoppanel.network.packet;
 
 import com.example.myshoppanel.economy.MSPPointsSavedData;
-import com.example.myshoppanel.shop.DynamicSystemService;
 import com.example.myshoppanel.shop.ListingFeeCalculator;
 import com.example.myshoppanel.shop.MarketBlacklist;
 import com.example.myshoppanel.shop.PlayerMarketSavedData;
@@ -100,7 +99,6 @@ public class C2S_ListMarketItemPacket {
             }
             if (fee > 0) {
                 points.cutPoints(player.getUUID(), fee);
-                DynamicSystemService.injectBotFunds(player.serverLevel(), fee, "上架手续费");
             }
 
             PlayerMarketSavedData marketData = PlayerMarketSavedData.get(player.serverLevel());

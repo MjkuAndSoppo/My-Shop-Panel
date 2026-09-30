@@ -89,6 +89,7 @@
   "my_shop_panel.hint.owned": "§7(拥有 %s 个)",
   "my_shop_panel.hint.price_label": "§7标价 (MSPP):",
   "my_shop_panel.hint.qty_label": "§7数量:",
+  "my_shop_panel.hint.need_terminal": "§c需要拥有报价终端才能使用快捷键打开商店",
 
   "my_shop_panel.empty.no_buy": "§7暂无可购买物品",
   "my_shop_panel.empty.no_sell": "§7暂无可出售物品",
