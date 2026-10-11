@@ -62,14 +62,9 @@ public class C2S_ListMarketItemPacket {
                 player.sendSystemMessage(Component.translatable("my_shop_panel.error.invalid_qty"));
                 return;
             }
-            // 不可堆叠物品强制数量为1，同时校验数量不超过maxStackSize
+            // 可堆叠物品单次最多一组；不可堆叠物品由下方「实际持有」校验把关
             int maxStack = msg.item.getMaxStackSize();
-            int actualQty;
-            if (maxStack <= 1) {
-                actualQty = 1;
-            } else {
-                actualQty = Math.min(msg.quantity, maxStack);
-            }
+            int actualQty = maxStack <= 1 ? msg.quantity : Math.min(msg.quantity, maxStack);
             if (MarketBlacklist.isBlacklisted(msg.item)) {
                 player.sendSystemMessage(Component.translatable("my_shop_panel.error.blacklisted"));
                 return;

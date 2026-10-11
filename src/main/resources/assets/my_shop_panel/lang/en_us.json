@@ -209,7 +209,7 @@
   "my_shop_panel.cmd.mspb.range_delisted": "[MSPB] Delisted %s listings in range #%s~#%s, items returned.",
   "my_shop_panel.cmd.mspb.none": "[MSPB] No listings exist.",
   "my_shop_panel.cmd.mspb.all_delisted": "[MSPB] All %s listings delisted, items returned.",
-  "my_shop_panel.cmd.mspb.admin_delisted": "[MSPB] Your listing #%s was delisted by an admin, items returned to backpack.",
+  "my_shop_panel.cmd.mspb.admin_delisted": "[MSPB] Your listing #%s was delisted by an admin, items moved to the redundant warehouse.",
 
   "my_shop_panel.cmd.mspp.self_transfer": "[MS.P.Points] You cannot transfer to yourself!",
   "my_shop_panel.cmd.mspp.insufficient": "[MS.P.Points] Insufficient balance! Current: %s",
@@ -276,5 +276,6 @@
   "my_shop_panel.tx.msg.insufficient_fee": "[MyShopPanel] Insufficient balance for fee! Need %s, current: %s",
   "my_shop_panel.tx.msg.list_success_detail": "[MyShopPanel] Listed! %s x%s at %s MSPP%s",
   "my_shop_panel.tx.msg.edit_mode": "[MyShopPanel] Edit mode %s",
-  "my_shop_panel.misc.item": "Item"
+  "my_shop_panel.misc.item": "Item",
+  "curios.identifier.terminal": "Terminal Slot"
 }

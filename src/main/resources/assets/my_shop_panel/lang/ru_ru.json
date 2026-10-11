@@ -93,5 +93,6 @@
   "error.cannot_buy_negative": "Недостаточно средств: %s, покупка невозможна",
   "ok.listed_continue": "Размещено! Можно продолжить",
   "ok.item_listed": "Предмет размещён",
-  "ok.global_shop_listed": "Товар добавлен в мировой магазин"
+  "ok.global_shop_listed": "Товар добавлен в мировой магазин",
+  "curios.identifier.terminal": "Слот терминала"
 }

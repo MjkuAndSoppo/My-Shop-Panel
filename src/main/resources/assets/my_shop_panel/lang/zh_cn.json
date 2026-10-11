@@ -209,7 +209,7 @@
   "my_shop_panel.cmd.mspb.range_delisted": "§a[MSPB] 已下架 #%s~#%s 范围内的 %s 个报价单，物品已退回。",
   "my_shop_panel.cmd.mspb.none": "§c[MSPB] 当前没有任何报价单。",
   "my_shop_panel.cmd.mspb.all_delisted": "§a[MSPB] 已下架全部 %s 个报价单，物品已退回。",
-  "my_shop_panel.cmd.mspb.admin_delisted": "§a[MSPB] 你的报价单 #%s 已被管理员下架，物品已退回背包。",
+  "my_shop_panel.cmd.mspb.admin_delisted": "§a[MSPB] 你的报价单 #%s 已被管理员下架，物品已存入冗余仓库。",
 
   "my_shop_panel.cmd.mspp.self_transfer": "§c[MS.P.Points] 你不能给自己转账！",
   "my_shop_panel.cmd.mspp.insufficient": "§c[MS.P.Points] 余额不足！当前余额: §6%s",
@@ -277,5 +277,6 @@
   "my_shop_panel.tx.msg.insufficient_fee": "§c[MyShopPanel] 余额不足以支付手续费！需要 §6%s§c，当前余额: §6%s",
   "my_shop_panel.tx.msg.list_success_detail": "§a[MyShopPanel] 上架成功！§f%s x%s §f标价 §6%s%s",
   "my_shop_panel.tx.msg.edit_mode": "§e[MyShopPanel] 编辑模式%s",
-  "my_shop_panel.misc.item": "物品"
+  "my_shop_panel.misc.item": "物品",
+  "curios.identifier.terminal": "终端饰品槽"
 }

@@ -32,7 +32,8 @@ public class MarketBuyDialog extends BaseStoreScreen {
 
         int stackCount = listing.getItem().getCount();
         this.maxQty = Math.min(stackCount, 999);
-        this.unitPrice = listing.getPrice() / stackCount;
+        // 标价即单价
+        this.unitPrice = listing.getPrice();
     }
 
     @Override

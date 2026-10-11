@@ -93,5 +93,6 @@
   "error.cannot_buy_negative": "残高不足: %s、購入不可",
   "ok.listed_continue": "出品完了！続けて出品できます",
   "ok.item_listed": "アイテム出品済",
-  "ok.global_shop_listed": "ワールドショップに出品済"
+  "ok.global_shop_listed": "ワールドショップに出品済",
+  "curios.identifier.terminal": "ターミナルスロット"
 }

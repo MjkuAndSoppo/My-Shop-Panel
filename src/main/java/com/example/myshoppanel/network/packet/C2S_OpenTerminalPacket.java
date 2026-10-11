@@ -1,5 +1,6 @@
 package com.example.myshoppanel.network.packet;
 
+import com.example.myshoppanel.compat.curios.CuriosIntegration;
 import com.example.myshoppanel.economy.MSPPointsSavedData;
 import com.example.myshoppanel.item.QuotationTerminalItem;
 import com.example.myshoppanel.network.NetworkHandler;
@@ -8,6 +9,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
@@ -46,13 +48,15 @@ public class C2S_OpenTerminalPacket {
         ctx.get().setPacketHandled(true);
     }
 
-    /** 玩家身上（背包 / 主手 / 副手）是否持有报价终端 */
+    /** 玩家身上（背包 / 主手 / 副手 / Curios 饰品槽）是否持有报价终端 */
     private static boolean hasTerminal(ServerPlayer player) {
         if (player.getMainHandItem().getItem() instanceof QuotationTerminalItem) return true;
         if (player.getOffhandItem().getItem() instanceof QuotationTerminalItem) return true;
         for (ItemStack stack : player.getInventory().items) {
             if (stack.getItem() instanceof QuotationTerminalItem) return true;
         }
+        // 软依赖：仅当 Curios 已加载时才查询饰品槽
+        if (ModList.get().isLoaded("curios") && CuriosIntegration.hasTerminal(player)) return true;
         return false;
     }
 }

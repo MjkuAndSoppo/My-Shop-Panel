@@ -117,8 +117,8 @@ public class C2S_ConfirmTransactionPacket {
         int stackCount = listing.getItem().getCount();
         int buyQty = (quantity <= 0) ? stackCount : Math.min(quantity, stackCount);
 
-        // 按比例计算价格（精度0.01）
-        double unitPrice = ShopUtils.roundAmount(listing.getPrice() / stackCount);
+        // 标价即单价，总价 = 单价 × 购买数量（精度0.01）
+        double unitPrice = listing.getPrice();
         double totalCost = ShopUtils.roundAmount(unitPrice * buyQty);
 
         MSPPointsSavedData points = MSPPointsSavedData.get(buyer.serverLevel());

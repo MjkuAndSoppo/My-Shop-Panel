@@ -114,5 +114,6 @@
   "my_shop_panel.error.expired": "該報價已失效，請重新選擇",
   "my_shop_panel.error.cant_buy": "餘額不足，當前餘額: %s，無法購買",
 
-  "my_shop_panel.ok.listed": "上架成功！可以繼續上架下一件物品"
+  "my_shop_panel.ok.listed": "上架成功！可以繼續上架下一件物品",
+  "curios.identifier.terminal": "終端飾品槽"
 }

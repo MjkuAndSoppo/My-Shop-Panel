@@ -281,15 +281,14 @@ public class ListingSetupScreen extends BaseStoreScreen {
 
         int owned = getOwnedCount();
         int maxStack = selectedItem.getMaxStackSize();
-        // 不可堆叠物品强制数量为1
-        if (maxStack <= 1) {
-            qty = 1;
-            qtyInput.setValue("1");
-        } else if (qty <= 0) {
+        // 可堆叠物品单次最多一组；不可堆叠物品按实际持有数限制
+        int maxListable = maxStack <= 1 ? owned : Math.min(owned, maxStack);
+        if (qty <= 0) {
             errorMessage = Component.translatable("my_shop_panel.error.qty_positive").getString();
             return;
-        } else if (qty > Math.min(owned, maxStack)) {
-            errorMessage = Component.translatable("my_shop_panel.error.qty_range", Math.min(owned, maxStack)).getString();
+        }
+        if (qty > maxListable) {
+            errorMessage = Component.translatable("my_shop_panel.error.qty_range", maxListable).getString();
             return;
         }
 

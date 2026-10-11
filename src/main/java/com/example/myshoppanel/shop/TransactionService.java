@@ -51,11 +51,13 @@ public class TransactionService {
         UUID buyerUUID = buyer.getUUID();
         MSPPointsSavedData points = MSPPointsSavedData.get(buyer.serverLevel());
         double current = points.getPoints(buyerUUID);
-        double newBalance = current - listing.getPrice();
+        // 标价即单价，整单总价 = 单价 × 数量
+        double totalCost = ShopUtils.roundAmount(listing.getPrice() * listing.getItem().getCount());
+        double newBalance = current - totalCost;
         String desc = "购买 §6" + listing.getItem().getDisplayName().getString()
                 + " x" + listing.getItem().getCount()
                 + " §f(卖家: §6" + listing.getSellerName() + "§f)";
-        return new TransactionPreview(buyerUUID, current, newBalance, listing.getPrice(), desc);
+        return new TransactionPreview(buyerUUID, current, newBalance, totalCost, desc);
     }
 
     /**
@@ -68,8 +70,8 @@ public class TransactionService {
         int actualQty = Math.min(buyQty, stackCount);
         if (actualQty <= 0) return -1;
 
-        // 按比例计算价格
-        double unitPrice = ShopUtils.roundAmount(listing.getPrice() / stackCount);
+        // 标价即单价，总价 = 单价 × 购买数量
+        double unitPrice = listing.getPrice();
         double totalCost = ShopUtils.roundAmount(unitPrice * actualQty);
 
         MSPPointsSavedData points = MSPPointsSavedData.get(buyer.serverLevel());
@@ -95,9 +97,9 @@ public class TransactionService {
             // 整单售出，移除挂单
             marketData.removeListing(listing.getListingId());
         } else {
-            // 部分售出，减少挂单数量并保留
+            // 部分售出：单价不变，剩余数量继续挂单
             int remaining = stackCount - actualQty;
-            double remainingPrice = ShopUtils.roundAmount(unitPrice * remaining);
+            double remainingPrice = unitPrice;
             marketData.removeListing(listing.getListingId());
             ItemStack remainingItem = listing.getItem().copy();
             remainingItem.setCount(remaining);

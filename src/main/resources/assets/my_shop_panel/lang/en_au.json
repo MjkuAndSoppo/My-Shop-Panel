@@ -114,5 +114,6 @@
   "my_shop_panel.error.expired": "This listing has expired, please re-select",
   "my_shop_panel.error.cant_buy": "Insufficient balance: %s, cannot buy",
 
-  "my_shop_panel.ok.listed": "Listed! Continue listing next item"
+  "my_shop_panel.ok.listed": "Listed! Continue listing next item",
+  "curios.identifier.terminal": "Terminal Slot"
 }

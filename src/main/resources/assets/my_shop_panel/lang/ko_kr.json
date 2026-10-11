@@ -93,5 +93,6 @@
   "error.cannot_buy_negative": "잔액 부족: %s, 구매 불가",
   "ok.listed_continue": "등록 완료! 다음 아이템을 계속 등록하세요",
   "ok.item_listed": "아이템 등록됨",
-  "ok.global_shop_listed": "월드 상점 아이템 등록됨"
+  "ok.global_shop_listed": "월드 상점 아이템 등록됨",
+  "curios.identifier.terminal": "터미널 슬롯"
 }

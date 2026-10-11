@@ -1,6 +1,5 @@
 package com.example.myshoppanel.command;
 
-import com.example.myshoppanel.economy.SimulateOfflineData;
 import com.example.myshoppanel.shop.PlayerMarketListing;
 import com.example.myshoppanel.shop.PlayerMarketSavedData;
 import com.example.myshoppanel.shop.RedundantWarehouseSavedData;
@@ -52,8 +51,8 @@ public class MSPBCommands {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         ItemStack held = player.getMainHandItem();
         if (held.isEmpty()) { ctx.getSource().sendFailure(Component.translatable("my_shop_panel.cmd.mspb.hold_item")); return; }
-        // 不可堆叠物品强制数量为1
-        final int listQty = held.getMaxStackSize() <= 1 ? 1 : quantity;
+        // 可堆叠物品单次最多一组；不可堆叠物品直接用指令数量
+        final int listQty = held.getMaxStackSize() <= 1 ? quantity : Math.min(quantity, held.getMaxStackSize());
         double price = DoubleArgumentType.getDouble(ctx, "price");
         ItemStack toList = held.copy(); toList.setCount(listQty);
         int found = 0;
@@ -123,21 +122,16 @@ public class MSPBCommands {
         return count;
     }
 
-    /** 退款：在线退回背包/掉落，离线放入冗余仓库 */
+    /** 管理员指令下架：物品一律放入卖家的冗余仓库（在线也不直接塞背包） */
     private static void refundListing(CommandContext<CommandSourceStack> ctx, PlayerMarketListing listing) {
-        ItemStack item = listing.getItem();
+        RedundantWarehouseSavedData warehouse =
+                RedundantWarehouseSavedData.get(ctx.getSource().getLevel());
+        warehouse.addItem(listing.getSellerUUID(), listing.getItem());
+
         ServerPlayer seller = ctx.getSource().getLevel().getServer()
                 .getPlayerList().getPlayer(listing.getSellerUUID());
-        boolean simulatedOffline = SimulateOfflineData.isSimulatedOffline(listing.getSellerUUID());
-        if (seller != null && !simulatedOffline) {
-            if (!seller.getInventory().add(item)) {
-                seller.drop(item, false);
-            }
+        if (seller != null) {
             seller.sendSystemMessage(Component.translatable("my_shop_panel.cmd.mspb.admin_delisted", listing.getDisplayId()));
-        } else {
-            RedundantWarehouseSavedData warehouse =
-                    RedundantWarehouseSavedData.get(ctx.getSource().getLevel());
-            warehouse.addItem(listing.getSellerUUID(), item);
         }
     }
 }
